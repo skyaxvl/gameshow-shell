@@ -135,11 +135,12 @@
     border-radius: 1vmin; border: .5vmin solid rgba(255,204,77,.6); }
   .mask span { font-family: "Anton", sans-serif; font-size: 16vmin; color: var(--gold);
     animation: pulse 1.2s ease-in-out infinite; }
+  .mask span.err { font-size: 4vmin; animation: none; }
   #title-guard { position: absolute; top: 0; left: 0; right: 0; height: 19%; z-index: 4;
     background: linear-gradient(180deg, #04071f 62%, transparent); border-radius: 1vmin 1vmin 0 0; }
-  /* temporary authoring aid: cards holding real (non-placeholder) content */
-  .cell.ready-cell { box-shadow: inset 0 0 0 .35vmin rgba(0,0,0,.35),
-    inset 0 0 0 .75vmin rgba(46,214,163,.85), 0 .5vmin 1.2vmin rgba(0,0,0,.45); }
+  /* temporary authoring aid: cards holding real (non-placeholder) content
+     render green instead of blue — remove before party night */
+  .cell.ready-cell { background: linear-gradient(180deg, #14b183, #078f66 45%, #045c42); }
   .answer-band { background: rgba(0,0,0,.45); border-top: .3vmin solid var(--gold);
     margin: 0 -3vmin -3vmin; padding: 2.4vmin; animation: slide-up .35s both; }
   @keyframes slide-up { from { transform: translateY(100%); } }
@@ -289,7 +290,15 @@ gate.addEventListener("click", () => {
     yt = new YT.Player("yt-holder", {
       width: "100%", height: "100%",
       playerVars: { autoplay: 1, controls: 1, rel: 0, modestbranding: 1 },
-      events: { onReady: () => { ytReady = true; syncMedia(); } },
+      events: {
+        onReady: () => { ytReady = true; syncMedia(); },
+        onError: () => {   // e.g. embedding disabled for the video
+          const span = mediaMask.querySelector("span");
+          span.textContent = "⚠ video won't embed";
+          span.classList.add("err");
+          mediaMask.hidden = false;
+        },
+      },
     });
   };
   render();
@@ -315,7 +324,6 @@ function render() {
   if (!S || gate.isConnected) return;
   const { phase } = S;
   renderPodiums(phase);
-  syncMedia();
 
   if (phase === "setup") { boardDealt = false; stage.innerHTML = setupView(); }
   else if (phase === "board") { stage.innerHTML = gridView(); boardDealt = true; }
@@ -325,6 +333,10 @@ function render() {
   else if (phase === "final_clue") { stage.innerHTML = finalClueView(); startFinalTimer(); }
   else if (phase === "final_reveal") stage.innerHTML = finalRevealView();
   else if (phase === "done") { stage.innerHTML = doneView(); startConfetti(); }
+
+  // Media must sync AFTER the clue DOM exists — the player is positioned
+  // relative to #media-anchor rendered above.
+  syncMedia();
 
   if (phase === "setup" && S.teams) drawQR();
   if (phase !== "done") stopConfetti();
@@ -498,6 +510,8 @@ function syncMedia() {
     ["youtube_video", "youtube_audio"].includes(ac.clue_type) && ac.media_url;
   if (!wantsYt) {
     mediaSlot.classList.remove("on");
+    mediaMask.hidden = true;      // never leave a stale music mask behind
+    titleGuard.hidden = true;
     if (currentMediaClue !== null && ytReady) { try { yt.stopVideo(); } catch {} }
     currentMediaClue = null;
     return;
@@ -516,6 +530,9 @@ function syncMedia() {
   titleGuard.hidden = S.phase === "reveal";
   if (ytReady && currentMediaClue !== ac.id) {
     currentMediaClue = ac.id;
+    const span = mediaMask.querySelector("span");
+    span.textContent = "♪ ?";
+    span.classList.remove("err");
     const id = ytId(ac.media_url);
     if (id) {
       yt.loadVideoById({
