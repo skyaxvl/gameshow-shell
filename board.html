@@ -217,9 +217,9 @@
   <div id="stage"></div>
   <div id="podiums"></div>
 </div>
-<div id="media-slot"><div id="yt-holder" style="position:absolute;inset:0"></div><div id="title-guard" hidden></div><div class="mask" id="media-mask" hidden><span>♪ ?</span></div></div>
+<div id="media-slot"><div id="yt-holder" style="position:absolute;inset:0"></div><video id="native-video" style="position:absolute;inset:0;width:100%;height:100%;display:none;background:#000;border-radius:1vmin" playsinline controls></video><div id="title-guard" hidden></div><div class="mask" id="media-mask" hidden><span>♪ ?</span></div></div>
 <canvas id="confetti"></canvas>
-<div id="build-tag">b0814.2058</div>
+<div id="build-tag">b0814.2126</div>
 <script type="module">
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -428,7 +428,7 @@ function ddView() {
 
 function clueView() {
   const ac = S.active_clue;
-  const hasMedia = ["youtube_video", "youtube_audio", "image"].includes(ac.clue_type) && ac.media_url;
+  const hasMedia = ["youtube_video", "youtube_audio", "video", "image"].includes(ac.clue_type) && ac.media_url;
   const long = (ac.prompt ?? "").length > 110;
   const buzzes = S.data?.buzz_order ?? [];
   const locked = S.data?.locked ?? [];
@@ -512,16 +512,29 @@ function doneView() {
 }
 
 /* ---------------- media ---------------- */
+const nativeVideo = document.getElementById("native-video");
+nativeVideo.addEventListener("timeupdate", () => {
+  const end = Number(nativeVideo.dataset.end);
+  if (end && nativeVideo.currentTime >= end) nativeVideo.pause();
+});
+
+function stopNativeVideo() {
+  if (nativeVideo.src) { nativeVideo.pause(); nativeVideo.removeAttribute("src"); nativeVideo.load(); }
+  nativeVideo.dataset.clue = "";
+  nativeVideo.style.display = "none";
+}
+
 function syncMedia() {
   const ac = S?.active_clue;
-  const wantsYt = ac && ["clue_open", "armed", "reveal", "final_clue"].includes(S.phase) &&
-    ["youtube_video", "youtube_audio"].includes(ac.clue_type) && ac.media_url;
-  if (!wantsYt) {
+  const inMediaPhase = ac && ["clue_open", "armed", "reveal", "final_clue"].includes(S.phase);
+  const kind = inMediaPhase && ac.media_url ? ac.clue_type : null;
+  if (!["youtube_video", "youtube_audio", "video"].includes(kind)) {
     mediaSlot.classList.remove("on");
     mediaMask.hidden = true;      // never leave a stale music mask behind
     titleGuard.hidden = true;
     if (currentMediaClue !== null && ytReady) { try { yt.stopVideo(); } catch {} }
     currentMediaClue = null;
+    stopNativeVideo();
     return;
   }
   const anchor = document.getElementById("media-anchor");
@@ -533,6 +546,25 @@ function syncMedia() {
     });
     mediaSlot.classList.add("on");
   }
+
+  if (kind === "video") {           // directly-uploaded file, native player
+    document.getElementById("yt-holder").style.display = "none";
+    nativeVideo.style.display = "block";
+    mediaMask.hidden = true;
+    titleGuard.hidden = true;
+    if (currentMediaClue !== null && ytReady) { try { yt.stopVideo(); } catch {} }
+    currentMediaClue = null;
+    if (nativeVideo.dataset.clue !== String(ac.id)) {
+      nativeVideo.dataset.clue = String(ac.id);
+      nativeVideo.dataset.end = ac.media_end ?? "";
+      nativeVideo.src = ac.media_url + (ac.media_start ? "#t=" + ac.media_start : "");
+      nativeVideo.play().catch(() => {});
+    }
+    return;
+  }
+
+  document.getElementById("yt-holder").style.display = "";
+  stopNativeVideo();
   mediaMask.hidden = !(ac.clue_type === "youtube_audio" && !ac.media_revealed);
   // Cover YouTube's own title overlay — it can spoil answers (song names, years).
   titleGuard.hidden = S.phase === "reveal";
