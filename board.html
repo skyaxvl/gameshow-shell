@@ -126,10 +126,11 @@
   .prompt { font-weight: 900; font-size: 5vmin; line-height: 1.25; text-transform: uppercase;
     max-width: 82vmin; text-shadow: 0 .5vmin 1vmin rgba(0,0,0,.65); }
   .prompt.longer { font-size: 3.8vmin; }
-  .clue img.photo { max-width: 90vw; max-height: 56vh; border-radius: 1vmin;
+  .clue img.photo { max-width: 94vw; max-height: 62vh; border-radius: 1vmin;
     border: .5vmin solid #fff2; box-shadow: 0 2vmin 5vmin rgba(0,0,0,.6); object-fit: contain; }
   /* as big as fits between the prompt and the podium strip, true 16:9 */
-  #media-anchor { width: min(90vw, calc(56vh * 16 / 9)); aspect-ratio: 16/9; }
+  #media-anchor { width: min(94vw, calc(64vh * 16 / 9)); aspect-ratio: 16/9; }
+  .prompt.compact { font-size: 3.2vmin; }  /* media clues: the picture is the star */
   #media-slot { position: relative; width: 74vmin; aspect-ratio: 16/9; display: none; }
   #media-slot.on { display: block; }
   .mask { position: absolute; inset: 0; z-index: 5; display: flex; align-items: center; justify-content: center;
@@ -219,7 +220,7 @@
 </div>
 <div id="media-slot"><div id="yt-holder" style="position:absolute;inset:0"></div><video id="native-video" style="position:absolute;inset:0;width:100%;height:100%;display:none;background:#000;border-radius:1vmin" playsinline controls></video><div id="title-guard" hidden></div><div class="mask" id="media-mask" hidden><span>♪ ?</span></div></div>
 <canvas id="confetti"></canvas>
-<div id="build-tag">b0814.2126</div>
+<div id="build-tag">b0814.2134</div>
 <script type="module">
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -437,7 +438,7 @@ function clueView() {
     <div class="clue-head">${esc(ac.category)} — ${ac.is_daily_double ? "Daily Double · wager " + fmt(ac.wager ?? 0) + " (" + esc(ac.team_name ?? "") + ")" : "$" + ac.points}</div>
     <div class="clue-body">
       ${ac.clue_type === "image" && ac.media_url ? `<img class="photo" src="${esc(ac.media_url)}" alt="clue image">` : ""}
-      ${ac.prompt ? `<div class="prompt ${long ? "longer" : ""}">${esc(ac.prompt)}</div>` : ""}
+      ${ac.prompt ? `<div class="prompt ${long ? "longer" : ""} ${hasMedia ? "compact" : ""}">${esc(ac.prompt)}</div>` : ""}
       ${hasMedia && ac.clue_type !== "image" ? '<div id="media-anchor"></div>' : ""}
     </div>
     ${S.phase === "reveal" && ac.answer ? `<div class="answer-band"><div class="lbl">Correct response</div><div class="ans">${esc(ac.answer)}</div></div>` : ""}
