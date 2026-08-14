@@ -222,7 +222,7 @@
 </div>
 <div id="media-slot"><div id="yt-holder" style="position:absolute;inset:0"></div><video id="native-video" style="position:absolute;inset:0;width:100%;height:100%;display:none;background:#000;border-radius:1vmin" playsinline controls></video><div id="title-guard" hidden></div><div class="mask" id="media-mask" hidden><span>♪ ?</span></div></div>
 <canvas id="confetti"></canvas>
-<div id="build-tag">b0814.2305</div>
+<div id="build-tag">b0814.2314</div>
 <script type="module">
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -268,6 +268,19 @@ const ytId = (u) => {
 const pageUrl = (name) => location.pathname.endsWith(".html")
   ? location.origin + location.pathname.replace(/[^/]*$/, name + ".html")
   : location.origin + location.pathname + "?view=" + name;
+
+// Self-heal stale pages: the API reports the current build; if this page was
+// served from an old cache, reload once with a cache-busting query.
+function ensureBuild(server) {
+  const mine = "b0814.2314";
+  if (!server || mine === "dev" || server === mine) return;
+  const guard = "bj_reload_" + server;
+  if (sessionStorage.getItem(guard)) return;   // one attempt per build — no loops
+  sessionStorage.setItem(guard, "1");
+  const u = new URL(location.href);
+  u.searchParams.set("v", server);
+  location.replace(u.toString());
+}
 
 const fmt = (n) => (n < 0 ? "−$" + Math.abs(n).toLocaleString("en-US") : "$" + Number(n).toLocaleString("en-US"));
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -665,10 +678,17 @@ function stopConfetti() {
 }
 
 /* ---------------- boot ---------------- */
+// diagnostics for remote debugging (harmless to leave in)
+window.__dbg = () => ({
+  ytReady, currentMediaClue, ytPausedApplied,
+  phase: S?.phase, acId: S?.active_clue?.id, acPaused: S?.active_clue?.media_paused,
+  ytState: (() => { try { return yt?.getPlayerState?.(); } catch { return "err"; } })(),
+});
 addEventListener("resize", () => syncMedia());   // keep the player glued to its anchor
 watch(async () => {
   try {
     const next = await api({ op: "state" });
+    ensureBuild(next.build);
     const sig = JSON.stringify(next);
     if (sig === lastSig) return;   // idle poll — nothing changed, don't redraw
     lastSig = sig;

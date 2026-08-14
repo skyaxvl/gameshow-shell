@@ -124,6 +124,19 @@ const pageUrl = (name) => location.pathname.endsWith(".html")
   ? location.origin + location.pathname.replace(/[^/]*$/, name + ".html")
   : location.origin + location.pathname + "?view=" + name;
 
+// Self-heal stale pages: the API reports the current build; if this page was
+// served from an old cache, reload once with a cache-busting query.
+function ensureBuild(server) {
+  const mine = "b0814.2314";
+  if (!server || mine === "dev" || server === mine) return;
+  const guard = "bj_reload_" + server;
+  if (sessionStorage.getItem(guard)) return;   // one attempt per build — no loops
+  sessionStorage.setItem(guard, "1");
+  const u = new URL(location.href);
+  u.searchParams.set("v", server);
+  location.replace(u.toString());
+}
+
 const fmt = (n) => (n < 0 ? "−$" + Math.abs(n).toLocaleString("en-US") : "$" + Number(n).toLocaleString("en-US"));
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
@@ -149,6 +162,7 @@ async function run(op, extra = {}, { refresh = true } = {}) {
 let lastSig = null;
 async function load() {
   const next = await api({ op: "state", key: KEY });
+  ensureBuild(next.build);
   const sig = JSON.stringify(next);
   if (sig === lastSig) return;   // nothing changed — don't disturb the UI
   lastSig = sig;
