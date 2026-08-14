@@ -1,0 +1,268 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="theme-color" content="#04071f">
+<title>Buzzer — Jeopardy</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Vollkorn:wght@600;900&display=swap" rel="stylesheet">
+<style>
+  :root { --navy:#04071f; --blue:#060ce9; --gold:#ffcc4d; --gold-deep:#d9930d; --wrong:#ff5d5d; --ok:#6fe08e; }
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; user-select:none; }
+  html, body { height:100%; }
+  body { background: radial-gradient(120vmax 90vmax at 50% -30%, #101a6e 0%, var(--navy) 60%);
+    color:#fff; font-family:"Vollkorn",serif; overflow:hidden; touch-action:manipulation; }
+  #app { height:100dvh; display:flex; flex-direction:column; padding:max(env(safe-area-inset-top),12px) 16px max(env(safe-area-inset-bottom),16px); }
+  header { display:flex; align-items:center; gap:10px; padding-bottom:8px; min-height:52px; }
+  header .who { font-size:19px; font-weight:900; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  header .score { margin-left:auto; font-family:"Anton",sans-serif; font-size:24px; color:var(--gold); }
+  header .score.neg { color:var(--wrong); }
+  main { flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:18px; min-height:0; }
+  h1.title { font-family:"Anton",sans-serif; letter-spacing:.08em; text-transform:uppercase; font-size:28px;
+    background:linear-gradient(180deg,#fff 20%,#ffe9a8 45%,var(--gold) 60%,var(--gold-deep));
+    -webkit-background-clip:text; background-clip:text; color:transparent; text-align:center; }
+  .hint { color:#aab3ea; font-size:16px; text-align:center; max-width:300px; line-height:1.4; }
+
+  .team-btn { width:100%; max-width:340px; display:flex; align-items:center; gap:14px; font-family:inherit;
+    font-size:20px; font-weight:900; color:#fff; text-align:left; padding:16px 20px; border-radius:14px;
+    background:linear-gradient(180deg,#1a2af0,#040ba8); border:2px solid rgba(255,255,255,.25); }
+  .team-btn:active { transform:scale(.97); }
+  .team-btn .tag { margin-left:auto; font-size:13px; font-weight:600; color:#aab3ea; }
+
+  #big {
+    width:min(78vw,58vh); aspect-ratio:1; border-radius:50%; border:none; font-family:"Anton",sans-serif;
+    font-size:clamp(28px,9vw,54px); letter-spacing:.06em; text-transform:uppercase; color:#3c4383;
+    background:radial-gradient(circle at 50% 32%, #232b6b, #10143c 70%);
+    box-shadow: inset 0 -14px 30px rgba(0,0,0,.5), 0 10px 40px rgba(0,0,0,.6);
+    transition: transform .08s; position:relative;
+  }
+  #big:active { transform:scale(.96); }
+  #big.armed { color:var(--navy);
+    background:radial-gradient(circle at 50% 30%, #fff0c0, var(--gold) 45%, var(--gold-deep) 95%);
+    box-shadow: inset 0 -14px 30px rgba(120,60,0,.35), 0 0 60px rgba(255,204,77,.55);
+    animation:throb 1s ease-in-out infinite; }
+  @keyframes throb { 50% { transform:scale(1.04); } }
+  #big.buzzed { color:#fff; background:radial-gradient(circle at 50% 30%, #2f3ba8, #10143c 80%); animation:none; }
+  #big.lockedout { color:#7d3a4b; background:radial-gradient(circle at 50% 30%, #3a1622, #1c0a12 80%); animation:none; }
+  #big .pos { display:block; font-size:clamp(48px,20vw,110px); line-height:1; }
+
+  .wager-box { width:100%; max-width:340px; display:flex; flex-direction:column; gap:14px; align-items:center; }
+  .wager-amount { font-family:"Anton",sans-serif; font-size:56px; color:var(--gold); }
+  .steppers { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; width:100%; }
+  .steppers button { font-family:inherit; font-weight:900; font-size:17px; color:#fff; padding:12px 0;
+    border-radius:10px; border:2px solid rgba(255,255,255,.25); background:#141c58; }
+  .steppers button:active { background:#1f2a80; }
+  .lockin { width:100%; font-family:"Anton",sans-serif; letter-spacing:.15em; font-size:20px; padding:16px 0;
+    border-radius:12px; border:none; color:var(--navy);
+    background:linear-gradient(180deg,#ffe9a8,var(--gold) 55%,var(--gold-deep)); }
+  .lockin:disabled { filter:grayscale(1) brightness(.6); }
+  .locked-note { color:var(--ok); font-size:18px; font-weight:900; }
+  .err { color:var(--wrong); font-size:15px; min-height:20px; text-align:center; }
+</style>
+</head>
+<body>
+<div id="app">
+  <header id="head"></header>
+  <main id="main"></main>
+</div>
+<script type="module">
+
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+
+const sb = createClient("https://vvzyaqvzurruskavuffe.supabase.co", "sb_publishable_Dtu3UBIiYcl7FasVR-aawg_-PpggO-s");
+const API_BASE = "https://vvzyaqvzurruskavuffe.supabase.co/functions/v1/game";   // the game edge function URL
+
+const api = async (body) => {
+  const r = await fetch(API_BASE, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) { const e = new Error(j.error || ("HTTP " + r.status)); e.status = r.status; throw e; }
+  return j;
+};
+
+function watch(onPoke) {
+  let t;
+  const poke = () => { clearTimeout(t); t = setTimeout(onPoke, 80); };
+  sb.channel("game")
+    .on("postgres_changes", { event: "*", schema: "public", table: "game_state" }, poke)
+    .on("postgres_changes", { event: "*", schema: "public", table: "teams" }, poke)
+    .subscribe((status) => { if (status === "SUBSCRIBED") poke(); });
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) poke(); });
+  setInterval(poke, 15000); // party-proof fallback poll
+  poke();
+}
+
+const ytId = (u) => {
+  try {
+    const url = new URL(u);
+    if (url.hostname.includes("youtu.be")) return url.pathname.slice(1);
+    if (url.searchParams.get("v")) return url.searchParams.get("v");
+    const m = url.pathname.match(/\/(embed|shorts|live)\/([\w-]{6,})/);
+    return m ? m[2] : null;
+  } catch { return null; }
+};
+
+// Sibling view URL that works both statically hosted (board.html → buzzer.html)
+// and served by the edge function (?view=board → ?view=buzzer).
+const pageUrl = (name) => location.pathname.endsWith(".html")
+  ? location.origin + location.pathname.replace(/[^/]*$/, name + ".html")
+  : location.origin + location.pathname + "?view=" + name;
+
+const fmt = (n) => (n < 0 ? "−$" + Math.abs(n).toLocaleString("en-US") : "$" + Number(n).toLocaleString("en-US"));
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+
+const head = document.getElementById("head");
+const main = document.getElementById("main");
+let S = null;
+let myId = Number(localStorage.getItem("bj_team") || 0) || null;
+let buzzInFlight = false;
+let myPosition = null;    // set from buzz POST response for instant feedback
+let wagerVal = 0, wagerLocked = false, lastPhase = null;
+
+/* keep the phone awake through the whole game */
+async function keepAwake() {
+  try { await navigator.wakeLock?.request("screen"); } catch { /* best effort */ }
+}
+keepAwake();
+document.addEventListener("visibilitychange", () => { if (!document.hidden) keepAwake(); });
+
+const me = () => (S?.teams ?? []).find((t) => t.id === myId);
+
+function render() {
+  if (!S) return;
+  const t = me();
+  if (S.phase !== lastPhase) {          // phase flips reset per-clue local state
+    if (["clue_open", "board", "dd_wager"].includes(S.phase)) myPosition = null;
+    if (S.phase === "final_wager" && lastPhase !== "final_wager") { wagerVal = 0; wagerLocked = false; }
+    lastPhase = S.phase;
+  }
+  head.innerHTML = t
+    ? `<span style="font-size:26px">${esc(t.emoji)}</span><span class="who">${esc(t.name)}</span>
+       <span class="score ${t.score < 0 ? "neg" : ""}">${fmt(t.score)}</span>`
+    : `<span class="who" style="color:#aab3ea">Jeopardy — Bachelor Edition</span>`;
+
+  if (!t) return renderJoin();
+  const buzzedIds = S.data?.buzz_order ?? [];
+  const lockedIds = S.data?.locked ?? [];
+
+  if (S.phase === "final_wager") return renderWager(t);
+  if (S.phase === "final_clue") return renderInfo("🤫", "Answer time!", "Talk it over — the MC will come to you.");
+  if (S.phase === "final_reveal") return renderInfo("🥁", "The reveal…", "Eyes on the big screen!");
+  if (S.phase === "done") return renderInfo("🏆", "That's the game!", "Thanks for playing.");
+  if (S.phase === "dd_wager" || (S.active_clue?.is_daily_double && S.phase === "clue_open")) {
+    const mine = S.active_clue?.team_id === myId;
+    return renderInfo("💰", "Daily Double!", mine ? "It's all on you. Answer out loud!" : "Not your clue — enjoy the sweat.");
+  }
+  renderBuzzer(t, buzzedIds, lockedIds);
+}
+
+function renderJoin() {
+  const teams = S.teams ?? [];
+  main.innerHTML = `
+    <h1 class="title">Pick your team</h1>
+    ${teams.length ? "" : '<div class="hint">No teams yet — the MC is setting things up.</div>'}
+    ${teams.map((t) => `
+      <button class="team-btn" data-id="${t.id}">
+        <span style="font-size:26px">${esc(t.emoji)}</span> ${esc(t.name)}
+        <span class="tag">${t.claimed ? "already claimed" : "tap to claim"}</span>
+      </button>`).join("")}
+    <div class="hint">One phone per team — this becomes your team's buzzer.</div>`;
+  main.querySelectorAll(".team-btn").forEach((b) =>
+    b.addEventListener("click", async () => {
+      myId = Number(b.dataset.id);
+      localStorage.setItem("bj_team", String(myId));
+      try { await api({ op: "team_claim", team_id: myId }); } catch {}
+      render();
+    })
+  );
+}
+
+function renderBuzzer(t, buzzedIds, lockedIds) {
+  const armed = S.phase === "armed";
+  const iBuzzed = buzzedIds.includes(myId) || myPosition !== null;
+  const iAmLocked = lockedIds.includes(myId);
+  const pos = myPosition ?? (buzzedIds.indexOf(myId) + 1 || null);
+  const cls = iAmLocked ? "lockedout" : iBuzzed ? "buzzed" : armed ? "armed" : "";
+  const label = iAmLocked
+    ? "Locked out"
+    : iBuzzed
+    ? `<span class="pos">${ordinal(pos)}</span>in line`
+    : armed
+    ? "BUZZ!"
+    : S.phase === "clue_open"
+    ? "Read the clue…"
+    : "Stand by…";
+  main.innerHTML = `<button id="big" class="${cls}">${label}</button><div class="err" id="err"></div>`;
+  document.getElementById("big").addEventListener("pointerdown", buzz);
+}
+
+const ordinal = (n) => n === 1 ? "1st" : n === 2 ? "2nd" : n === 3 ? "3rd" : n + "th";
+
+async function buzz() {
+  if (S.phase !== "armed" || buzzInFlight || myPosition !== null) return;
+  if ((S.data?.locked ?? []).includes(myId)) return;
+  buzzInFlight = true;
+  navigator.vibrate?.(35);
+  try {
+    const r = await api({ op: "buzz", team_id: myId });
+    myPosition = r.position;
+    render();
+  } catch (e) {
+    const el = document.getElementById("err");
+    if (el) el.textContent = e.status === 409 ? "" : (e.message || "try again");
+  } finally { buzzInFlight = false; }
+}
+
+function renderWager(t) {
+  const max = Math.max(t.score, 0);
+  const already = (S.data?.final?.wagers_in ?? []).includes(myId) || wagerLocked;
+  if (already) return renderInfo("🔒", "Wager locked in", "Eyes on the big screen for the category!");
+  wagerVal = Math.min(wagerVal, max);
+  main.innerHTML = `
+    <h1 class="title">Final Jeopardy</h1>
+    <div class="hint">Category: <b style="color:var(--gold)">${esc(S.final_category ?? "…")}</b><br>Wager anything from $0 to ${fmt(max)}. Keep it secret!</div>
+    <div class="wager-box">
+      <div class="wager-amount">${fmt(wagerVal)}</div>
+      <div class="steppers">
+        <button data-d="-500">−500</button><button data-d="-100">−100</button>
+        <button data-d="100">+100</button><button data-d="500">+500</button>
+        <button data-set="0">Zero</button><button data-set="${Math.floor(max / 2)}">Half</button>
+        <button data-set="${max}">All in</button><button data-d="1000">+1000</button>
+      </div>
+      <button class="lockin" id="lockin" ${max === 0 && wagerVal === 0 ? "" : ""}>Lock it in</button>
+      <div class="err" id="err"></div>
+    </div>`;
+  main.querySelectorAll(".steppers button").forEach((b) =>
+    b.addEventListener("click", () => {
+      if (b.dataset.set !== undefined) wagerVal = Number(b.dataset.set);
+      else wagerVal = Math.max(0, Math.min(max, wagerVal + Number(b.dataset.d)));
+      renderWager(me());
+    })
+  );
+  document.getElementById("lockin").addEventListener("click", async () => {
+    try {
+      await api({ op: "final_wager", team_id: myId, amount: wagerVal });
+      wagerLocked = true;
+      navigator.vibrate?.(60);
+      render();
+    } catch (e) { document.getElementById("err").textContent = e.message; }
+  });
+}
+
+function renderInfo(icon, title, text) {
+  main.innerHTML = `<div style="font-size:64px">${icon}</div>
+    <h1 class="title">${esc(title)}</h1><div class="hint">${esc(text)}</div>`;
+}
+
+watch(async () => {
+  try { S = await api({ op: "state" }); render(); } catch (e) { console.error(e); }
+});
+</script>
+</body>
+</html>

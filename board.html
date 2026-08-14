@@ -1,0 +1,558 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Jeopardy — Bachelor Edition</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Vollkorn:ital,wght@0,600;0,900;1,600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --navy: #04071f;
+    --board-blue: #060ce9;
+    --tile-hi: #1a2af0;
+    --tile-lo: #040ba8;
+    --gold: #ffcc4d;
+    --gold-deep: #d9930d;
+    --ink: #ffffff;
+    --wrong: #ff5d5d;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    background:
+      radial-gradient(120vmax 90vmax at 50% -20%, #101a6e 0%, var(--navy) 55%),
+      var(--navy);
+    color: var(--ink);
+    font-family: "Vollkorn", serif;
+    overflow: hidden;
+    cursor: none;
+  }
+  #app { height: 100%; display: flex; flex-direction: column; }
+  #stage { flex: 1; min-height: 0; position: relative; }
+
+  /* ---------- start gate (one click enables sound for the whole show) ------ */
+  #gate {
+    position: fixed; inset: 0; z-index: 60; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 4vmin; cursor: pointer;
+    background: radial-gradient(100vmax 80vmax at 50% 30%, #0d1560 0%, var(--navy) 70%);
+  }
+  .brand {
+    font-family: "Anton", sans-serif;
+    font-size: 11vmin; letter-spacing: .06em; text-transform: uppercase;
+    background: linear-gradient(180deg, #fff 20%, #ffe9a8 45%, var(--gold) 60%, var(--gold-deep) 100%);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+    filter: drop-shadow(0 .8vmin 0 rgba(0,0,0,.55));
+    text-align: center; line-height: .95;
+  }
+  .brand small { display: block; font-size: 3.2vmin; letter-spacing: .5em; color: var(--ink);
+    -webkit-text-fill-color: var(--ink); filter: none; margin-top: 1.6vmin; }
+  #gate button {
+    font-family: "Anton", sans-serif; font-size: 3vmin; letter-spacing: .2em;
+    padding: 2vmin 6vmin; border-radius: 999px; border: .35vmin solid var(--gold);
+    color: var(--navy); background: linear-gradient(180deg, #ffe9a8, var(--gold) 55%, var(--gold-deep));
+    cursor: pointer; box-shadow: 0 1.2vmin 3vmin rgba(0,0,0,.5);
+    animation: pulse 1.6s ease-in-out infinite;
+  }
+  @keyframes pulse { 50% { transform: scale(1.05); } }
+
+  /* ---------- setup ---------- */
+  .setup { height: 100%; display: flex; align-items: center; justify-content: center; gap: 8vmin; }
+  .setup .brand { font-size: 8vmin; }
+  .join-card { background: rgba(255,255,255,.04); border: .3vmin solid rgba(255,204,77,.5);
+    border-radius: 2vmin; padding: 3.5vmin; text-align: center; }
+  .join-card h3 { font-family: "Anton", sans-serif; letter-spacing: .15em; font-size: 2.6vmin; color: var(--gold); margin-bottom: 2vmin; }
+  #qr { background: #fff; padding: 1.4vmin; border-radius: 1.2vmin; display: inline-block; }
+  .join-url { margin-top: 1.8vmin; font-size: 2.1vmin; color: #cdd4ff; word-break: break-all; max-width: 42vmin; }
+  .lobby { display: flex; flex-direction: column; gap: 1.4vmin; min-width: 34vmin; }
+  .lobby .team-row { display: flex; align-items: center; gap: 1.6vmin; font-size: 3vmin;
+    background: rgba(6,12,233,.35); border: .25vmin solid rgba(255,255,255,.18);
+    padding: 1.2vmin 2.2vmin; border-radius: 1.2vmin; animation: slide-in .4s both; }
+  .team-row.claimed { border-color: var(--gold); }
+  @keyframes slide-in { from { opacity: 0; transform: translateX(-3vmin); } }
+
+  /* ---------- board grid ---------- */
+  .grid-wrap { height: 100%; padding: 2.2vmin 2.2vmin 1vmin; display: flex; }
+  .grid { flex: 1; display: grid; gap: .7vmin;
+    grid-template-rows: 1.15fr repeat(5, 1fr); grid-auto-flow: column; }
+  .cell {
+    display: flex; align-items: center; justify-content: center; text-align: center;
+    background: linear-gradient(180deg, var(--tile-hi), var(--board-blue) 45%, var(--tile-lo));
+    border-radius: .7vmin; box-shadow: inset 0 0 0 .35vmin rgba(0,0,0,.35), 0 .5vmin 1.2vmin rgba(0,0,0,.45);
+    opacity: 0; transform: translateY(2.5vmin) scale(.96);
+    animation: deal .45s cubic-bezier(.2,.9,.3,1.2) forwards; animation-delay: var(--d);
+  }
+  @keyframes deal { to { opacity: 1; transform: none; } }
+  .cat {
+    font-family: "Anton", sans-serif; text-transform: uppercase; letter-spacing: .05em;
+    font-size: 2.5vmin; line-height: 1.1; padding: 1vmin; text-shadow: 0 .35vmin 0 rgba(0,0,0,.6);
+  }
+  .val { font-family: "Anton", sans-serif; font-size: 5.4vmin;
+    background-image: linear-gradient(180deg, #ffe9a8 15%, var(--gold) 55%, var(--gold-deep));
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+    filter: drop-shadow(0 .45vmin 0 rgba(0,0,0,.6)); }
+  .cell.done-cell { animation: none; opacity: 1; transform: none;
+    background: linear-gradient(180deg, #0a1046, #060a30); box-shadow: inset 0 0 0 .35vmin rgba(0,0,0,.5); }
+  .cell.done-cell .val { visibility: hidden; }
+
+  /* ---------- podium strip ---------- */
+  #podiums { display: flex; gap: 1.2vmin; padding: 1vmin 2.2vmin 1.6vmin; justify-content: center; }
+  .podium {
+    min-width: 17vmin; text-align: center; padding: 1vmin 2vmin 1.2vmin; border-radius: 1.2vmin;
+    background: linear-gradient(180deg, #131c7a, #0a1046);
+    border: .3vmin solid rgba(255,255,255,.14); transition: transform .25s;
+  }
+  .podium.leader { border-color: var(--gold); box-shadow: 0 0 2.4vmin rgba(255,204,77,.35); }
+  .podium.bump { animation: bump .6s; }
+  @keyframes bump { 30% { transform: translateY(-1.4vmin) scale(1.06); } }
+  .podium .t-name { font-size: 1.9vmin; letter-spacing: .04em; color: #cdd4ff; white-space: nowrap;
+    overflow: hidden; text-overflow: ellipsis; max-width: 22vmin; }
+  .podium .t-score { font-family: "Anton", sans-serif; font-size: 3.4vmin; color: var(--gold); }
+  .podium .t-score.neg { color: var(--wrong); }
+  .podium .t-emoji { font-size: 2.6vmin; }
+
+  /* ---------- clue overlay ---------- */
+  .clue {
+    position: absolute; inset: 0; display: flex; flex-direction: column;
+    background: linear-gradient(180deg, var(--tile-hi), var(--board-blue) 40%, var(--tile-lo));
+    animation: clue-in .3s cubic-bezier(.2,.9,.3,1.1); padding: 3vmin; text-align: center;
+  }
+  @keyframes clue-in { from { opacity: 0; transform: scale(.6); } }
+  .clue-head { font-family: "Anton", sans-serif; letter-spacing: .12em; font-size: 3vmin; color: var(--gold);
+    text-shadow: 0 .3vmin 0 rgba(0,0,0,.5); text-transform: uppercase; }
+  .clue-body { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2.5vmin; min-height: 0; }
+  .prompt { font-weight: 900; font-size: 5vmin; line-height: 1.25; text-transform: uppercase;
+    max-width: 82vmin; text-shadow: 0 .5vmin 1vmin rgba(0,0,0,.65); }
+  .prompt.longer { font-size: 3.8vmin; }
+  .clue img.photo { max-width: 86vmin; max-height: 52vmin; border-radius: 1vmin;
+    border: .5vmin solid #fff2; box-shadow: 0 2vmin 5vmin rgba(0,0,0,.6); object-fit: contain; }
+  #media-slot { position: relative; width: 74vmin; aspect-ratio: 16/9; display: none; }
+  #media-slot.on { display: block; }
+  .mask { position: absolute; inset: 0; z-index: 5; display: flex; align-items: center; justify-content: center;
+    background: linear-gradient(180deg, var(--tile-hi), var(--tile-lo));
+    border-radius: 1vmin; border: .5vmin solid rgba(255,204,77,.6); }
+  .mask span { font-family: "Anton", sans-serif; font-size: 16vmin; color: var(--gold);
+    animation: pulse 1.2s ease-in-out infinite; }
+  .answer-band { background: rgba(0,0,0,.45); border-top: .3vmin solid var(--gold);
+    margin: 0 -3vmin -3vmin; padding: 2.4vmin; animation: slide-up .35s both; }
+  @keyframes slide-up { from { transform: translateY(100%); } }
+  .answer-band .lbl { font-size: 1.9vmin; letter-spacing: .4em; color: #cdd4ff; text-transform: uppercase; }
+  .answer-band .ans { font-family: "Anton", sans-serif; font-size: 4.6vmin; color: var(--gold); text-transform: uppercase; }
+
+  .armed-bar ~ .clue-head { margin-top: 4.5vmin; }
+  .armed-bar { position: absolute; left: 0; right: 0; top: 0; padding: .9vmin; z-index: 6;
+    background: linear-gradient(90deg, transparent, rgba(255,204,77,.92), transparent);
+    color: var(--navy); font-family: "Anton", sans-serif; letter-spacing: .35em; font-size: 2.2vmin;
+    text-align: center; text-transform: uppercase; animation: pulse 1s infinite; }
+
+  #buzz-stack { position: absolute; left: 2.5vmin; bottom: 2.5vmin; z-index: 7;
+    display: flex; flex-direction: column-reverse; gap: 1vmin; }
+  .buzz-toast { display: flex; align-items: center; gap: 1.4vmin; font-size: 2.8vmin;
+    background: rgba(4,7,31,.92); border: .3vmin solid rgba(255,255,255,.25);
+    border-radius: 1vmin; padding: 1vmin 2vmin; animation: slide-in .25s both; }
+  .buzz-toast.first { border-color: var(--gold); box-shadow: 0 0 2.4vmin rgba(255,204,77,.5); font-size: 3.4vmin; }
+  .buzz-toast .pos { font-family: "Anton", sans-serif; color: var(--gold); min-width: 4vmin; }
+  .buzz-toast.locked-out { opacity: .35; text-decoration: line-through; }
+
+  /* ---------- daily double / final splashes ---------- */
+  .splash { position: absolute; inset: 0; display: flex; flex-direction: column; gap: 3vmin;
+    align-items: center; justify-content: center; text-align: center; overflow: hidden;
+    background: radial-gradient(80vmax 80vmax at 50% 45%, #24123f 0%, #0b0620 65%); }
+  .splash .rays { position: absolute; inset: -50%; z-index: 0; opacity: .5; animation: spin 24s linear infinite;
+    background: repeating-conic-gradient(rgba(255,204,77,.16) 0deg 8deg, transparent 8deg 22deg); }
+  @keyframes spin { to { transform: rotate(1turn); } }
+  .splash .big { position: relative; z-index: 1; font-family: "Anton", sans-serif; font-size: 12.5vmin;
+    line-height: .95; text-transform: uppercase;
+    background-image: linear-gradient(180deg, #fff 15%, #ffe9a8 40%, var(--gold) 60%, var(--gold-deep));
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+    filter: drop-shadow(0 1vmin 0 rgba(0,0,0,.6));
+    animation: dd-in .5s cubic-bezier(.2,.9,.3,1.4) both; }
+  @keyframes dd-in { from { transform: scale(.2) rotate(-6deg); opacity: 0; } }
+  .splash .sub { position: relative; z-index: 1; font-size: 3.4vmin; color: #e6e9ff; max-width: 80vmin; }
+  .splash .sub b { color: var(--gold); }
+
+  /* ---------- final reveal cards ---------- */
+  .final-list { display: flex; flex-direction: column; gap: 1.6vmin; z-index: 1; position: relative; min-width: 60vmin; }
+  .fr-card { display: flex; align-items: center; gap: 2.4vmin; justify-content: space-between;
+    background: rgba(6,12,233,.3); border: .3vmin solid rgba(255,255,255,.2);
+    padding: 1.6vmin 2.6vmin; border-radius: 1.2vmin; font-size: 3vmin; animation: slide-up .4s both; }
+  .fr-card.right { border-color: #6fe08e; } .fr-card.wrongf { border-color: var(--wrong); }
+  .fr-card .delta { font-family: "Anton", sans-serif; }
+  .fr-card.right .delta { color: #6fe08e; } .fr-card.wrongf .delta { color: var(--wrong); }
+  .timer-ring { width: 12vmin; height: 12vmin; }
+  .timer-ring circle { fill: none; stroke-width: 8; }
+
+  /* ---------- winner ---------- */
+  .winner-name { font-family: "Anton", sans-serif; font-size: 9vmin; color: var(--ink); z-index: 1; position: relative; }
+  #confetti { position: fixed; inset: 0; pointer-events: none; z-index: 50; }
+
+  .result-toast { position: fixed; top: 3vmin; left: 50%; transform: translateX(-50%); z-index: 40;
+    font-size: 3vmin; padding: 1.4vmin 3.4vmin; border-radius: 999px; background: rgba(4,7,31,.95);
+    border: .3vmin solid #6fe08e; animation: slide-in .3s both; }
+  .result-toast.bad { border-color: var(--wrong); }
+  .result-toast b { font-family: "Anton", sans-serif; letter-spacing: .05em; }
+</style>
+</head>
+<body>
+<div id="gate">
+  <div class="brand">Jeopardy!<small>Bachelor Edition</small></div>
+  <button>Start the show</button>
+</div>
+<div id="app">
+  <div id="stage"></div>
+  <div id="podiums"></div>
+</div>
+<div id="media-slot"><div id="yt-holder" style="position:absolute;inset:0"></div><div class="mask" id="media-mask" hidden><span>♪ ?</span></div></div>
+<canvas id="confetti"></canvas>
+<script type="module">
+
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+
+const sb = createClient("https://vvzyaqvzurruskavuffe.supabase.co", "sb_publishable_Dtu3UBIiYcl7FasVR-aawg_-PpggO-s");
+const API_BASE = "https://vvzyaqvzurruskavuffe.supabase.co/functions/v1/game";   // the game edge function URL
+
+const api = async (body) => {
+  const r = await fetch(API_BASE, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) { const e = new Error(j.error || ("HTTP " + r.status)); e.status = r.status; throw e; }
+  return j;
+};
+
+function watch(onPoke) {
+  let t;
+  const poke = () => { clearTimeout(t); t = setTimeout(onPoke, 80); };
+  sb.channel("game")
+    .on("postgres_changes", { event: "*", schema: "public", table: "game_state" }, poke)
+    .on("postgres_changes", { event: "*", schema: "public", table: "teams" }, poke)
+    .subscribe((status) => { if (status === "SUBSCRIBED") poke(); });
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) poke(); });
+  setInterval(poke, 15000); // party-proof fallback poll
+  poke();
+}
+
+const ytId = (u) => {
+  try {
+    const url = new URL(u);
+    if (url.hostname.includes("youtu.be")) return url.pathname.slice(1);
+    if (url.searchParams.get("v")) return url.searchParams.get("v");
+    const m = url.pathname.match(/\/(embed|shorts|live)\/([\w-]{6,})/);
+    return m ? m[2] : null;
+  } catch { return null; }
+};
+
+// Sibling view URL that works both statically hosted (board.html → buzzer.html)
+// and served by the edge function (?view=board → ?view=buzzer).
+const pageUrl = (name) => location.pathname.endsWith(".html")
+  ? location.origin + location.pathname.replace(/[^/]*$/, name + ".html")
+  : location.origin + location.pathname + "?view=" + name;
+
+const fmt = (n) => (n < 0 ? "−$" + Math.abs(n).toLocaleString("en-US") : "$" + Number(n).toLocaleString("en-US"));
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+
+const stage = document.getElementById("stage");
+const podiums = document.getElementById("podiums");
+const mediaSlot = document.getElementById("media-slot");
+const mediaMask = document.getElementById("media-mask");
+const gate = document.getElementById("gate");
+
+let S = null;               // latest state
+let yt = null;              // persistent YouTube player
+let ytReady = false;
+let currentMediaClue = null;
+let lastScores = {};
+let lastResultKey = null;
+let lastBuzzCount = 0;
+let confettiOn = false;
+
+/* ---- one-click sound gate: after this, iframes with allow=autoplay inherit it ---- */
+gate.addEventListener("click", () => {
+  gate.remove();
+  const tag = document.createElement("script");
+  tag.src = "https://www.youtube.com/iframe_api";
+  document.head.appendChild(tag);
+  window.onYouTubeIframeAPIReady = () => {
+    yt = new YT.Player("yt-holder", {
+      width: "100%", height: "100%",
+      playerVars: { autoplay: 1, controls: 1, rel: 0, modestbranding: 1 },
+      events: { onReady: () => { ytReady = true; syncMedia(); } },
+    });
+  };
+  render();
+}, { once: true });
+
+/* ---- tiny buzz blip ---- */
+let actx;
+function blip(freq = 880) {
+  try {
+    actx ??= new AudioContext();
+    const o = actx.createOscillator(), g = actx.createGain();
+    o.frequency.value = freq; o.type = "square";
+    g.gain.setValueAtTime(.12, actx.currentTime);
+    g.gain.exponentialRampToValueAtTime(.0001, actx.currentTime + .25);
+    o.connect(g).connect(actx.destination); o.start(); o.stop(actx.currentTime + .3);
+  } catch { /* sound is a bonus */ }
+}
+
+const teamById = (id) => (S?.teams ?? []).find((t) => t.id === id);
+
+/* ---------------- render ---------------- */
+function render() {
+  if (!S || gate.isConnected) return;
+  const { phase } = S;
+  renderPodiums(phase);
+  syncMedia();
+
+  if (phase === "setup") stage.innerHTML = setupView();
+  else if (phase === "board") stage.innerHTML = gridView();
+  else if (phase === "dd_wager") stage.innerHTML = ddView();
+  else if (["clue_open", "armed", "reveal"].includes(phase)) stage.innerHTML = clueView();
+  else if (phase === "final_wager") stage.innerHTML = finalWagerView();
+  else if (phase === "final_clue") { stage.innerHTML = finalClueView(); startFinalTimer(); }
+  else if (phase === "final_reveal") stage.innerHTML = finalRevealView();
+  else if (phase === "done") { stage.innerHTML = doneView(); startConfetti(); }
+
+  if (phase === "setup" && S.teams) drawQR();
+  if (phase !== "done") stopConfetti();
+
+  const buzzes = S.data?.buzz_order ?? [];
+  if (phase === "armed" && buzzes.length > lastBuzzCount) blip(660 + 120 * buzzes.length);
+  lastBuzzCount = buzzes.length;
+
+  const lr = S.data?.last_result;
+  const key = lr ? JSON.stringify(lr) : null;
+  if (lr && key !== lastResultKey && ["board", "armed"].includes(phase)) showResultToast(lr);
+  lastResultKey = key;
+}
+
+function renderPodiums(phase) {
+  if (["setup", "done"].includes(phase)) { podiums.innerHTML = ""; return; }
+  const max = Math.max(...S.teams.map((t) => t.score), -Infinity);
+  podiums.innerHTML = S.teams.map((t) => {
+    const bump = lastScores[t.id] !== undefined && lastScores[t.id] !== t.score;
+    return `<div class="podium ${t.score === max && S.teams.length > 1 ? "leader" : ""} ${bump ? "bump" : ""}">
+      <div class="t-emoji">${esc(t.emoji)}</div>
+      <div class="t-name">${esc(t.name)}</div>
+      <div class="t-score ${t.score < 0 ? "neg" : ""}">${fmt(t.score)}</div>
+    </div>`;
+  }).join("");
+  lastScores = Object.fromEntries(S.teams.map((t) => [t.id, t.score]));
+}
+
+function setupView() {
+  const joinUrl = pageUrl("buzzer");
+  return `<div class="setup">
+    <div>
+      <div class="brand">Jeopardy!<small>Bachelor Edition</small></div>
+      <div class="lobby" style="margin-top:3vmin">
+        ${S.teams.length ? S.teams.map((t) => `
+          <div class="team-row ${t.claimed ? "claimed" : ""}">${esc(t.emoji)} ${esc(t.name)}
+            <span style="margin-left:auto;font-size:2vmin;color:${t.claimed ? "var(--gold)" : "#8891d8"}">${t.claimed ? "buzzer ready" : "waiting…"}</span>
+          </div>`).join("")
+        : '<div style="color:#8891d8;font-size:2.4vmin">The MC is setting up teams…</div>'}
+      </div>
+    </div>
+    <div class="join-card">
+      <h3>Grab your buzzer</h3>
+      <div id="qr"></div>
+      <div class="join-url">${esc(joinUrl)}</div>
+    </div>
+  </div>`;
+}
+
+async function drawQR() {
+  const el = document.getElementById("qr");
+  if (!el || el.firstChild) return;
+  try {
+    const QR = (await import("https://esm.sh/qrcode@1.5.4")).default;
+    const canvas = document.createElement("canvas");
+    await QR.toCanvas(canvas, pageUrl("buzzer"), { width: 240, margin: 1 });
+    el.appendChild(canvas);
+  } catch { el.textContent = "QR unavailable — use the URL below"; }
+}
+
+function gridView() {
+  let i = 0;
+  return `<div class="grid-wrap"><div class="grid">${
+    S.grid.map((cat) =>
+      `<div class="cell cat" style="--d:${(i++) * .04}s">${esc(cat.category)}</div>` +
+      cat.clues.map((c) =>
+        c.answered
+          ? `<div class="cell done-cell"><span class="val">${c.points}</span></div>`
+          : `<div class="cell" style="--d:${(i++) * .04}s"><span class="val">$${c.points}</span></div>`
+      ).join("")
+    ).join("")
+  }</div></div>`;
+}
+
+function ddView() {
+  return `<div class="splash"><div class="rays"></div>
+    <div class="big">Daily<br>Double!</div>
+    <div class="sub">Category: <b>${esc(S.active_clue?.category ?? "")}</b> — place your wager!</div>
+  </div>`;
+}
+
+function clueView() {
+  const ac = S.active_clue;
+  const hasMedia = ["youtube_video", "youtube_audio", "image"].includes(ac.clue_type) && ac.media_url;
+  const long = (ac.prompt ?? "").length > 110;
+  const buzzes = S.data?.buzz_order ?? [];
+  const locked = S.data?.locked ?? [];
+  return `<div class="clue">
+    ${S.phase === "armed" ? '<div class="armed-bar">Buzzers live</div>' : ""}
+    <div class="clue-head">${esc(ac.category)} — ${ac.is_daily_double ? "Daily Double · wager " + fmt(ac.wager ?? 0) + " (" + esc(ac.team_name ?? "") + ")" : "$" + ac.points}</div>
+    <div class="clue-body">
+      ${ac.clue_type === "image" && ac.media_url ? `<img class="photo" src="${esc(ac.media_url)}" alt="clue image">` : ""}
+      ${ac.prompt ? `<div class="prompt ${long ? "longer" : ""}">${esc(ac.prompt)}</div>` : ""}
+      ${hasMedia && ac.clue_type !== "image" ? '<div style="width:74vmin;aspect-ratio:16/9" id="media-anchor"></div>' : ""}
+    </div>
+    ${S.phase === "reveal" && ac.answer ? `<div class="answer-band"><div class="lbl">Correct response</div><div class="ans">${esc(ac.answer)}</div></div>` : ""}
+    <div id="buzz-stack">${buzzes.map((id, i) => {
+      const t = teamById(id); if (!t) return "";
+      return `<div class="buzz-toast ${i === 0 ? "first" : ""}"><span class="pos">${i + 1}</span> ${esc(t.emoji)} ${esc(t.name)}</div>`;
+    }).join("")}${locked.map((id) => {
+      const t = teamById(id); if (!t) return "";
+      return `<div class="buzz-toast locked-out">✘ ${esc(t.emoji)} ${esc(t.name)}</div>`;
+    }).join("")}</div>
+  </div>`;
+}
+
+function finalWagerView() {
+  const inCount = (S.data?.final?.wagers_in ?? []).length;
+  return `<div class="splash"><div class="rays"></div>
+    <div class="big">Final<br>Jeopardy!</div>
+    <div class="sub">Category: <b>${esc(S.final_category ?? "…")}</b></div>
+    <div class="sub">Secret wagers locked in: <b>${inCount} / ${S.teams.length}</b> — check your phones!</div>
+  </div>`;
+}
+
+function finalClueView() {
+  const ac = S.active_clue;
+  return `<div class="clue">
+    <div class="clue-head">Final Jeopardy — ${esc(ac.category)}</div>
+    <div class="clue-body">
+      <div class="prompt ${(ac.prompt ?? "").length > 110 ? "longer" : ""}">${esc(ac.prompt)}</div>
+      <svg class="timer-ring" viewBox="0 0 100 100">
+        <circle cx="50" cy="50" r="44" stroke="rgba(255,255,255,.15)"></circle>
+        <circle id="ring" cx="50" cy="50" r="44" stroke="var(--gold)" stroke-linecap="round"
+          stroke-dasharray="276.5" stroke-dashoffset="0" transform="rotate(-90 50 50)"></circle>
+      </svg>
+    </div>
+  </div>`;
+}
+
+let timerInt;
+function startFinalTimer() {
+  clearInterval(timerInt);
+  const t0 = new Date(S.data?.final?.clue_at ?? Date.now()).getTime();
+  const DUR = 60_000;
+  timerInt = setInterval(() => {
+    const ring = document.getElementById("ring");
+    if (!ring) { clearInterval(timerInt); return; }
+    const left = Math.max(0, 1 - (Date.now() - t0) / DUR);
+    ring.style.strokeDashoffset = String(276.5 * (1 - left));
+    if (!left) clearInterval(timerInt);
+  }, 250);
+}
+
+function finalRevealView() {
+  const revealed = S.data?.final?.revealed ?? [];
+  return `<div class="splash"><div class="rays"></div>
+    <div class="big" style="font-size:7vmin">The moment of truth</div>
+    <div class="final-list">${revealed.map((r) => `
+      <div class="fr-card ${r.correct ? "right" : "wrongf"}">
+        <span>${esc(r.emoji)} ${esc(r.team_name)}</span>
+        <span class="delta">${r.correct ? "+" : "−"}${fmt(r.wager).replace("−", "")} → ${fmt(r.new_score)}</span>
+      </div>`).join("")}
+    </div></div>`;
+}
+
+function doneView() {
+  const winner = [...S.teams].sort((a, b) => b.score - a.score)[0];
+  return `<div class="splash"><div class="rays"></div>
+    <div class="big">Champions!</div>
+    <div class="winner-name">${winner ? esc(winner.emoji) + " " + esc(winner.name) + " · " + fmt(winner.score) : ""}</div>
+    <div class="final-list" style="margin-top:2vmin">${[...S.teams].sort((a, b) => b.score - a.score).slice(1).map((t, i) => `
+      <div class="fr-card"><span>#${i + 2} ${esc(t.emoji)} ${esc(t.name)}</span><span class="delta" style="color:var(--gold)">${fmt(t.score)}</span></div>`).join("")}
+    </div></div>`;
+}
+
+/* ---------------- media ---------------- */
+function syncMedia() {
+  const ac = S?.active_clue;
+  const wantsYt = ac && ["clue_open", "armed", "reveal", "final_clue"].includes(S.phase) &&
+    ["youtube_video", "youtube_audio"].includes(ac.clue_type) && ac.media_url;
+  if (!wantsYt) {
+    mediaSlot.classList.remove("on");
+    if (currentMediaClue !== null && ytReady) { try { yt.stopVideo(); } catch {} }
+    currentMediaClue = null;
+    return;
+  }
+  const anchor = document.getElementById("media-anchor");
+  if (anchor) {
+    const r = anchor.getBoundingClientRect();
+    Object.assign(mediaSlot.style, {
+      position: "fixed", left: r.left + "px", top: r.top + "px",
+      width: r.width + "px", height: r.height + "px", zIndex: 8,
+    });
+    mediaSlot.classList.add("on");
+  }
+  mediaMask.hidden = !(ac.clue_type === "youtube_audio" && !ac.media_revealed);
+  if (ytReady && currentMediaClue !== ac.id) {
+    currentMediaClue = ac.id;
+    const id = ytId(ac.media_url);
+    if (id) yt.loadVideoById({ videoId: id, startSeconds: ac.media_start ?? 0 });
+  }
+}
+
+/* ---------------- toasts & confetti ---------------- */
+function showResultToast(lr) {
+  document.querySelectorAll(".result-toast").forEach((n) => n.remove());
+  const div = document.createElement("div");
+  div.className = "result-toast " + (lr.correct ? "" : "bad");
+  div.innerHTML = lr.correct
+    ? `<b>${esc(lr.team_name)}</b> got it! +${fmt(lr.points)} — <i>${esc(lr.answer ?? "")}</i>`
+    : `<b>${esc(lr.team_name)}</b> — not quite. −${fmt(lr.points)}`;
+  document.body.appendChild(div);
+  blip(lr.correct ? 1200 : 220);
+  setTimeout(() => div.remove(), 4500);
+}
+
+const cvs = document.getElementById("confetti"), ctx = cvs.getContext("2d");
+let parts = [], rafId;
+function startConfetti() {
+  if (confettiOn) return; confettiOn = true;
+  cvs.width = innerWidth; cvs.height = innerHeight;
+  parts = Array.from({ length: 180 }, () => ({
+    x: Math.random() * cvs.width, y: -20 - Math.random() * cvs.height,
+    w: 6 + Math.random() * 8, h: 8 + Math.random() * 10,
+    v: 1.5 + Math.random() * 3, a: Math.random() * 6.28, va: (Math.random() - .5) * .2,
+    c: ["#ffcc4d", "#ff5d5d", "#6fe08e", "#7aa2ff", "#ffffff"][Math.floor(Math.random() * 5)],
+  }));
+  (function tick() {
+    ctx.clearRect(0, 0, cvs.width, cvs.height);
+    for (const p of parts) {
+      p.y += p.v; p.a += p.va; if (p.y > cvs.height + 20) { p.y = -20; p.x = Math.random() * cvs.width; }
+      ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.a); ctx.fillStyle = p.c;
+      ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h); ctx.restore();
+    }
+    rafId = requestAnimationFrame(tick);
+  })();
+}
+function stopConfetti() {
+  if (!confettiOn) return; confettiOn = false;
+  cancelAnimationFrame(rafId); ctx.clearRect(0, 0, cvs.width, cvs.height);
+}
+
+/* ---------------- boot ---------------- */
+watch(async () => {
+  try { S = await api({ op: "state" }); render(); } catch (e) { console.error(e); }
+});
+</script>
+</body>
+</html>
