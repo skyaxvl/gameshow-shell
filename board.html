@@ -221,7 +221,7 @@
 </div>
 <div id="media-slot"><div id="yt-holder" style="position:absolute;inset:0"></div><video id="native-video" style="position:absolute;inset:0;width:100%;height:100%;display:none;background:#000;border-radius:1vmin" playsinline controls></video><div id="title-guard" hidden></div><div class="mask" id="media-mask" hidden><span>♪ ?</span></div></div>
 <canvas id="confetti"></canvas>
-<div id="build-tag">b0814.2139</div>
+<div id="build-tag">b0814.2157</div>
 <script type="module">
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -329,6 +329,30 @@ function blip(freq = 880) {
 
 const teamById = (id) => (S?.teams ?? []).find((t) => t.id === id);
 
+/* blur-reveal: 4 = unrecognizable … 0 = crystal clear */
+const BLUR_STEPS = [0, 0.6, 1.4, 2.6, 4.5];
+let lastBlurClue = null, lastBlurLevel = null;
+function applyBlur() {
+  const img = document.querySelector("img.photo");
+  const ac = S?.active_clue;
+  if (!img || ac?.blur_level == null) { lastBlurClue = null; return; }
+  if (lastBlurClue !== ac.id) {           // first render of this clue: no animation
+    lastBlurClue = ac.id;
+    lastBlurLevel = ac.blur_level;
+    return;
+  }
+  if (lastBlurLevel !== ac.blur_level) {  // animate between steps
+    const from = BLUR_STEPS[lastBlurLevel], to = BLUR_STEPS[ac.blur_level];
+    img.style.transition = "none";
+    img.style.filter = "blur(" + from + "vmin)";
+    requestAnimationFrame(() => {
+      img.style.transition = "filter 1.6s ease";
+      img.style.filter = "blur(" + to + "vmin)";
+    });
+    lastBlurLevel = ac.blur_level;
+  }
+}
+
 /* ---------------- render ---------------- */
 function render() {
   if (!S || gate.isConnected) return;
@@ -347,6 +371,7 @@ function render() {
   // Media must sync AFTER the clue DOM exists — the player is positioned
   // relative to #media-anchor rendered above.
   syncMedia();
+  applyBlur();
 
   if (phase === "setup" && S.teams) drawQR();
   if (phase !== "done") stopConfetti();
@@ -441,7 +466,7 @@ function clueView() {
     ${S.phase === "armed" ? '<div class="armed-bar">Buzzers live</div>' : ""}
     <div class="clue-head">${esc(ac.category)} — ${ac.is_daily_double ? "Daily Double · wager " + fmt(ac.wager ?? 0) + " (" + esc(ac.team_name ?? "") + ")" : "$" + ac.points}</div>
     <div class="clue-body">
-      ${ac.clue_type === "image" && ac.media_url ? `<img class="photo" src="${esc(ac.media_url)}" alt="clue image">` : ""}
+      ${ac.clue_type === "image" && ac.media_url ? `<img class="photo" style="${ac.blur_level != null ? "filter: blur(" + BLUR_STEPS[ac.blur_level] + "vmin);" : ""}" src="${esc(ac.media_url)}" alt="clue image">` : ""}
       ${ac.prompt ? `<div class="prompt ${long ? "longer" : ""} ${hasMedia ? "compact" : ""}">${esc(ac.prompt)}</div>` : ""}
       ${hasMedia && ac.clue_type !== "image" ? '<div id="media-anchor"></div>' : ""}
     </div>

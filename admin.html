@@ -290,6 +290,12 @@ function clueCard() {
     <div>${esc(full.prompt ?? ac.prompt ?? "")}</div>
     <div class="answer-box"><div class="lbl">Answer (only you see this)</div><div class="val">${esc(full.expected_answer ?? "…")}</div></div>
     ${full.mc_notes ? `<div class="notes">${esc(full.mc_notes)}</div>` : ""}
+    ${ac.blur_level != null ? `
+      <div class="row" style="align-items:center">
+        <span class="hintline grow">Blur: <b style="color:var(--gold)">${["clear ✓","faint","medium","strong","hidden"][ac.blur_level]}</b> — read a clue, then unblur</span>
+        <button data-act="blur-more" ${ac.blur_level >= 4 ? "disabled" : ""}>+ blur</button>
+        <button class="gold" data-act="blur-less" ${ac.blur_level <= 0 ? "disabled" : ""}>Unblur ▸</button>
+      </div>` : ""}
     ${hasHiddenMedia ? '<button class="wide" data-act="media-reveal">🎬 Reveal the video</button>' : ""}
     ${S.phase === "clue_open" && !isDD ? '<button class="gold wide" data-act="arm">🔔 ARM BUZZERS</button>' : ""}
     ${S.phase === "armed" ? '<button class="ghost wide" data-act="disarm">Pause buzzers</button>' : ""}
@@ -373,6 +379,8 @@ function wire() {
       else if (act === "arm") await run("arm");
       else if (act === "disarm") await run("disarm");
       else if (act === "media-reveal") await run("media_reveal");
+      else if (act === "blur-less") await run("blur_set", { level: (S.active_clue?.blur_level ?? 0) - 1 });
+      else if (act === "blur-more") await run("blur_set", { level: (S.active_clue?.blur_level ?? 0) + 1 });
       else if (act === "judge-right") await run("judge", { correct: true });
       else if (act === "judge-wrong") await run("judge", { correct: false });
       else if (act === "reveal-answer") await run("reveal_answer");
