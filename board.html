@@ -126,10 +126,11 @@
   .prompt { font-weight: 900; font-size: 5vmin; line-height: 1.25; text-transform: uppercase;
     max-width: 82vmin; text-shadow: 0 .5vmin 1vmin rgba(0,0,0,.65); }
   .prompt.longer { font-size: 3.8vmin; }
-  .clue img.photo { max-width: 94vw; max-height: 62vh; border-radius: 1vmin;
+  .clue img.photo { flex: 1 1 auto; min-height: 0; max-width: 96vw; border-radius: 1vmin;
     border: .5vmin solid #fff2; box-shadow: 0 2vmin 5vmin rgba(0,0,0,.6); object-fit: contain; }
-  /* as big as fits between the prompt and the podium strip, true 16:9 */
-  #media-anchor { width: min(94vw, calc(64vh * 16 / 9)); aspect-ratio: 16/9; }
+  /* cinema mode: the player absorbs ALL space left after head/prompt/answer —
+     it can never be squeezed small by the rest of the layout */
+  #media-anchor { flex: 1 1 auto; align-self: stretch; min-height: 0; width: auto; }
   .prompt.compact { font-size: 3.2vmin; }  /* media clues: the picture is the star */
   #media-slot { position: relative; width: 74vmin; aspect-ratio: 16/9; display: none; }
   #media-slot.on { display: block; }
@@ -220,7 +221,7 @@
 </div>
 <div id="media-slot"><div id="yt-holder" style="position:absolute;inset:0"></div><video id="native-video" style="position:absolute;inset:0;width:100%;height:100%;display:none;background:#000;border-radius:1vmin" playsinline controls></video><div id="title-guard" hidden></div><div class="mask" id="media-mask" hidden><span>♪ ?</span></div></div>
 <canvas id="confetti"></canvas>
-<div id="build-tag">b0814.2134</div>
+<div id="build-tag">b0814.2139</div>
 <script type="module">
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -361,7 +362,10 @@ function render() {
 }
 
 function renderPodiums(phase) {
-  if (["setup", "done"].includes(phase)) { podiums.innerHTML = ""; return; }
+  // during a media clue the screen belongs to the picture — podiums return for judging
+  const mediaOpen = ["clue_open", "armed"].includes(phase) &&
+    ["youtube_video", "youtube_audio", "video", "image"].includes(S.active_clue?.clue_type ?? "");
+  if (["setup", "done"].includes(phase) || mediaOpen) { podiums.innerHTML = ""; return; }
   const max = Math.max(...S.teams.map((t) => t.score), -Infinity);
   podiums.innerHTML = S.teams.map((t) => {
     const bump = lastScores[t.id] !== undefined && lastScores[t.id] !== t.score;
