@@ -145,8 +145,13 @@ async function run(op, extra = {}, { refresh = true } = {}) {
   finally { busy = false; }
 }
 
+let lastSig = null;
 async function load() {
-  S = await api({ op: "state", key: KEY });
+  const next = await api({ op: "state", key: KEY });
+  const sig = JSON.stringify(next);
+  if (sig === lastSig) return;   // nothing changed — don't disturb the UI
+  lastSig = sig;
+  S = next;
   render();
 }
 

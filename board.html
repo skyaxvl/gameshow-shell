@@ -84,6 +84,7 @@
     animation: deal .45s cubic-bezier(.2,.9,.3,1.2) forwards; animation-delay: var(--d);
   }
   @keyframes deal { to { opacity: 1; transform: none; } }
+  .grid.dealt .cell { animation: none; opacity: 1; transform: none; }
   .cat {
     font-family: "Anton", sans-serif; text-transform: uppercase; letter-spacing: .05em;
     font-size: 2.5vmin; line-height: 1.1; padding: 1vmin; text-shadow: 0 .35vmin 0 rgba(0,0,0,.6);
@@ -262,6 +263,8 @@ const mediaMask = document.getElementById("media-mask");
 const gate = document.getElementById("gate");
 
 let S = null;               // latest state
+let lastSig = null;         // skip re-renders when nothing changed
+let boardDealt = false;     // play the tile deal-in only once per game
 let yt = null;              // persistent YouTube player
 let ytReady = false;
 let currentMediaClue = null;
@@ -308,8 +311,8 @@ function render() {
   renderPodiums(phase);
   syncMedia();
 
-  if (phase === "setup") stage.innerHTML = setupView();
-  else if (phase === "board") stage.innerHTML = gridView();
+  if (phase === "setup") { boardDealt = false; stage.innerHTML = setupView(); }
+  else if (phase === "board") { stage.innerHTML = gridView(); boardDealt = true; }
   else if (phase === "dd_wager") stage.innerHTML = ddView();
   else if (["clue_open", "armed", "reveal"].includes(phase)) stage.innerHTML = clueView();
   else if (phase === "final_wager") stage.innerHTML = finalWagerView();
@@ -378,7 +381,7 @@ async function drawQR() {
 
 function gridView() {
   let i = 0;
-  return `<div class="grid-wrap"><div class="grid">${
+  return `<div class="grid-wrap"><div class="grid ${boardDealt ? "dealt" : ""}">${
     S.grid.map((cat) =>
       `<div class="cell cat" style="--d:${(i++) * .04}s">${esc(cat.category)}</div>` +
       cat.clues.map((c) =>
@@ -551,7 +554,14 @@ function stopConfetti() {
 
 /* ---------------- boot ---------------- */
 watch(async () => {
-  try { S = await api({ op: "state" }); render(); } catch (e) { console.error(e); }
+  try {
+    const next = await api({ op: "state" });
+    const sig = JSON.stringify(next);
+    if (sig === lastSig) return;   // idle poll — nothing changed, don't redraw
+    lastSig = sig;
+    S = next;
+    render();
+  } catch (e) { console.error(e); }
 });
 </script>
 </body>

@@ -260,8 +260,16 @@ function renderInfo(icon, title, text) {
     <h1 class="title">${esc(title)}</h1><div class="hint">${esc(text)}</div>`;
 }
 
+let lastSig = null;
 watch(async () => {
-  try { S = await api({ op: "state" }); render(); } catch (e) { console.error(e); }
+  try {
+    const next = await api({ op: "state" });
+    const sig = JSON.stringify(next);
+    if (sig === lastSig) return;   // nothing changed — keep the DOM still
+    lastSig = sig;
+    S = next;
+    render();
+  } catch (e) { console.error(e); }
 });
 </script>
 </body>
