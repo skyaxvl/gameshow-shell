@@ -135,6 +135,11 @@
     border-radius: 1vmin; border: .5vmin solid rgba(255,204,77,.6); }
   .mask span { font-family: "Anton", sans-serif; font-size: 16vmin; color: var(--gold);
     animation: pulse 1.2s ease-in-out infinite; }
+  #title-guard { position: absolute; top: 0; left: 0; right: 0; height: 19%; z-index: 4;
+    background: linear-gradient(180deg, #04071f 62%, transparent); border-radius: 1vmin 1vmin 0 0; }
+  /* temporary authoring aid: cards holding real (non-placeholder) content */
+  .cell.ready-cell { box-shadow: inset 0 0 0 .35vmin rgba(0,0,0,.35),
+    inset 0 0 0 .75vmin rgba(46,214,163,.85), 0 .5vmin 1.2vmin rgba(0,0,0,.45); }
   .answer-band { background: rgba(0,0,0,.45); border-top: .3vmin solid var(--gold);
     margin: 0 -3vmin -3vmin; padding: 2.4vmin; animation: slide-up .35s both; }
   @keyframes slide-up { from { transform: translateY(100%); } }
@@ -204,7 +209,7 @@
   <div id="stage"></div>
   <div id="podiums"></div>
 </div>
-<div id="media-slot"><div id="yt-holder" style="position:absolute;inset:0"></div><div class="mask" id="media-mask" hidden><span>♪ ?</span></div></div>
+<div id="media-slot"><div id="yt-holder" style="position:absolute;inset:0"></div><div id="title-guard" hidden></div><div class="mask" id="media-mask" hidden><span>♪ ?</span></div></div>
 <canvas id="confetti"></canvas>
 <script type="module">
 
@@ -260,6 +265,7 @@ const stage = document.getElementById("stage");
 const podiums = document.getElementById("podiums");
 const mediaSlot = document.getElementById("media-slot");
 const mediaMask = document.getElementById("media-mask");
+const titleGuard = document.getElementById("title-guard");
 const gate = document.getElementById("gate");
 
 let S = null;               // latest state
@@ -387,7 +393,7 @@ function gridView() {
       cat.clues.map((c) =>
         c.answered
           ? `<div class="cell done-cell"><span class="val">${c.points}</span></div>`
-          : `<div class="cell" style="--d:${(i++) * .04}s"><span class="val">$${c.points}</span></div>`
+          : `<div class="cell ${c.ready ? "ready-cell" : ""}" style="--d:${(i++) * .04}s"><span class="val">$${c.points}</span></div>`
       ).join("")
     ).join("")
   }</div></div>`;
@@ -506,10 +512,18 @@ function syncMedia() {
     mediaSlot.classList.add("on");
   }
   mediaMask.hidden = !(ac.clue_type === "youtube_audio" && !ac.media_revealed);
+  // Cover YouTube's own title overlay — it can spoil answers (song names, years).
+  titleGuard.hidden = S.phase === "reveal";
   if (ytReady && currentMediaClue !== ac.id) {
     currentMediaClue = ac.id;
     const id = ytId(ac.media_url);
-    if (id) yt.loadVideoById({ videoId: id, startSeconds: ac.media_start ?? 0 });
+    if (id) {
+      yt.loadVideoById({
+        videoId: id,
+        startSeconds: ac.media_start ?? 0,
+        ...(ac.media_end ? { endSeconds: ac.media_end } : {}),
+      });
+    }
   }
 }
 

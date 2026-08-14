@@ -45,6 +45,7 @@
     text-align:center; overflow:hidden; display:flex; align-items:center; justify-content:center; min-height:30px; line-height:1.15; }
   .mini-grid button.tile { font-family:"Anton",sans-serif; font-size:15px; color:var(--gold); padding:10px 0; position:relative; }
   .mini-grid button.tile.used { opacity:.25; text-decoration:line-through; }
+  .mini-grid button.tile.ready { border-color:#2bd4a0; box-shadow:0 0 8px rgba(43,212,160,.35); }
   .mini-grid button.tile .dd { position:absolute; top:2px; right:4px; font-size:9px; color:#ff9aa5; }
   .queue { display:flex; flex-direction:column; gap:8px; }
   .q-item { display:flex; align-items:center; gap:10px; background:var(--panel2); border:1px solid var(--line);
@@ -254,7 +255,7 @@ function gridCard() {
           const cl = c.clues[row];
           if (!cl) return "<span></span>";
           const full = clueById(cl.id);
-          return `<button class="tile ${cl.answered ? "used" : ""}" data-act="pick-clue" data-id="${cl.id}" ${cl.answered ? "disabled" : ""}>
+          return `<button class="tile ${cl.answered ? "used" : ""} ${full?.is_ready && !cl.answered ? "ready" : ""}" data-act="pick-clue" data-id="${cl.id}" ${cl.answered ? "disabled" : ""}>
             ${cl.points}${full?.is_daily_double ? '<span class="dd">DD</span>' : ""}</button>`;
         }).join("")
       ).join("")}
