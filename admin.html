@@ -296,6 +296,8 @@ function clueCard() {
         <button data-act="blur-more" ${ac.blur_level >= 4 ? "disabled" : ""}>+ blur</button>
         <button class="gold" data-act="blur-less" ${ac.blur_level <= 0 ? "disabled" : ""}>Unblur ▸</button>
       </div>` : ""}
+    ${["youtube_video", "youtube_audio", "video"].includes(ac.clue_type) ? `
+      <button class="wide" data-act="media-pause">${ac.media_paused ? "▶ Resume the sound" : "⏸ Pause the sound"}</button>` : ""}
     ${hasHiddenMedia ? '<button class="wide" data-act="media-reveal">🎬 Reveal the video</button>' : ""}
     ${cleanSlate ? '<div class="hintline">🍺 Clean slate — wrong answers clear every buzz. Re-arm when the drinks are ready.</div>' : ""}
     ${S.phase === "clue_open" && !isDD ? `<button class="gold wide" data-act="arm">🔔 ${cleanSlate ? "RE-ARM BUZZERS" : "ARM BUZZERS"}</button>` : ""}
@@ -383,6 +385,7 @@ function wire() {
       else if (act === "arm") await run("arm");
       else if (act === "disarm") await run("disarm");
       else if (act === "media-reveal") await run("media_reveal");
+      else if (act === "media-pause") await run("media_pause", { paused: !S.active_clue?.media_paused });
       else if (act === "blur-less") await run("blur_set", { level: (S.active_clue?.blur_level ?? 0) - 1 });
       else if (act === "blur-more") await run("blur_set", { level: (S.active_clue?.blur_level ?? 0) + 1 });
       else if (act === "judge-right") await run("judge", { correct: true });

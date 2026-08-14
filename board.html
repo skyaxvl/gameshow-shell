@@ -222,7 +222,7 @@
 </div>
 <div id="media-slot"><div id="yt-holder" style="position:absolute;inset:0"></div><video id="native-video" style="position:absolute;inset:0;width:100%;height:100%;display:none;background:#000;border-radius:1vmin" playsinline controls></video><div id="title-guard" hidden></div><div class="mask" id="media-mask" hidden><span>♪ ?</span></div></div>
 <canvas id="confetti"></canvas>
-<div id="build-tag">b0814.2216</div>
+<div id="build-tag">b0814.2305</div>
 <script type="module">
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -285,6 +285,7 @@ let lastSig = null;         // skip re-renders when nothing changed
 let boardDealt = false;     // play the tile deal-in only once per game
 let yt = null;              // persistent YouTube player
 let ytReady = false;
+let ytPausedApplied = false;
 let currentMediaClue = null;
 let lastScores = {};
 let lastResultKey = null;
@@ -587,6 +588,11 @@ function syncMedia() {
       nativeVideo.dataset.end = ac.media_end ?? "";
       nativeVideo.src = ac.media_url + (ac.media_start ? "#t=" + ac.media_start : "");
       nativeVideo.play().catch(() => {});
+    } else {
+      const atEnd = Number(nativeVideo.dataset.end) &&
+        nativeVideo.currentTime >= Number(nativeVideo.dataset.end);
+      if (ac.media_paused && !nativeVideo.paused) nativeVideo.pause();
+      if (!ac.media_paused && nativeVideo.paused && !atEnd) nativeVideo.play().catch(() => {});
     }
     return;
   }
@@ -598,6 +604,7 @@ function syncMedia() {
   titleGuard.hidden = S.phase === "reveal";
   if (ytReady && currentMediaClue !== ac.id) {
     currentMediaClue = ac.id;
+    ytPausedApplied = false;
     const span = mediaMask.querySelector("span");
     span.textContent = "♪ ?";
     span.classList.remove("err");
@@ -608,6 +615,12 @@ function syncMedia() {
         startSeconds: ac.media_start ?? 0,
         ...(ac.media_end ? { endSeconds: ac.media_end } : {}),
       });
+    }
+  } else if (ytReady && currentMediaClue === ac.id) {
+    const wantPause = !!ac.media_paused;
+    if (wantPause !== ytPausedApplied) {
+      try { wantPause ? yt.pauseVideo() : yt.playVideo(); } catch { /* not fatal */ }
+      ytPausedApplied = wantPause;
     }
   }
 }
