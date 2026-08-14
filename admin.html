@@ -281,9 +281,9 @@ function clueCard() {
   const full = S.active_full ?? clueById(ac?.id) ?? {};
   const isDD = !!ac?.is_daily_double;
   const order = S.data?.buzz_order ?? [];
-  const locked = S.data?.locked ?? [];
-  const first = teamById(order[0]);
+  const first = teamById(order[0]?.team_id);
   const judgeTarget = isDD ? teamById(ac.team_id) : first;
+  const cleanSlate = S.phase === "clue_open" && S.data?.last_result?.correct === false;
   const hasHiddenMedia = ["youtube_audio"].includes(ac?.clue_type) && !ac?.media_revealed;
   return `<div class="card">
     <h3>${esc(ac.category)} — ${isDD ? "DD wager " + fmt(ac.wager ?? 0) : "$" + ac.points}</h3>
@@ -297,12 +297,16 @@ function clueCard() {
         <button class="gold" data-act="blur-less" ${ac.blur_level <= 0 ? "disabled" : ""}>Unblur ▸</button>
       </div>` : ""}
     ${hasHiddenMedia ? '<button class="wide" data-act="media-reveal">🎬 Reveal the video</button>' : ""}
-    ${S.phase === "clue_open" && !isDD ? '<button class="gold wide" data-act="arm">🔔 ARM BUZZERS</button>' : ""}
+    ${cleanSlate ? '<div class="hintline">🍺 Clean slate — wrong answers clear every buzz. Re-arm when the drinks are ready.</div>' : ""}
+    ${S.phase === "clue_open" && !isDD ? `<button class="gold wide" data-act="arm">🔔 ${cleanSlate ? "RE-ARM BUZZERS" : "ARM BUZZERS"}</button>` : ""}
     ${S.phase === "armed" ? '<button class="ghost wide" data-act="disarm">Pause buzzers</button>' : ""}
     ${(S.phase === "armed" || isDD) && S.phase !== "reveal" ? `
       <div class="queue">
-        ${order.map((id, i) => { const t = teamById(id); return t ? `<div class="q-item ${i === 0 ? "first" : ""}"><span class="pos">${i + 1}</span> ${esc(t.emoji)} ${esc(t.name)}</div>` : ""; }).join("")}
-        ${locked.map((id) => { const t = teamById(id); return t ? `<div class="q-item lockedq">✘ ${esc(t.emoji)} ${esc(t.name)}</div>` : ""; }).join("")}
+        ${order.map((b, i) => {
+          const t = teamById(b.team_id); if (!t) return "";
+          const gap = i === 0 ? "" : `<span class="hintline" style="margin-left:auto">+${((Date.parse(b.at) - Date.parse(order[0].at)) / 1000).toFixed(3)}s</span>`;
+          return `<div class="q-item ${i === 0 ? "first" : ""}"><span class="pos">${i === 0 ? "🍺" : i + 1}</span> ${esc(t.emoji)} ${esc(t.name)} ${gap}</div>`;
+        }).join("")}
         ${!order.length && !isDD ? '<div class="hintline">Waiting for buzzes…</div>' : ""}
       </div>
       ${judgeTarget ? `<div class="row">

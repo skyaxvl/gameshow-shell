@@ -166,7 +166,8 @@
     border-radius: 1vmin; padding: 1vmin 2vmin; animation: slide-in .25s both; }
   .buzz-toast.first { border-color: var(--gold); box-shadow: 0 0 2.4vmin rgba(255,204,77,.5); font-size: 3.4vmin; }
   .buzz-toast .pos { font-family: "Anton", sans-serif; color: var(--gold); min-width: 4vmin; }
-  .buzz-toast.locked-out { opacity: .35; text-decoration: line-through; }
+  .buzz-toast .gap { font-size: 2vmin; color: #8891d8; font-variant-numeric: tabular-nums; }
+  .buzz-toast:not(.first) { opacity: .75; }
 
   /* ---------- daily double / final splashes ---------- */
   .splash { position: absolute; inset: 0; display: flex; flex-direction: column; gap: 3vmin;
@@ -221,7 +222,7 @@
 </div>
 <div id="media-slot"><div id="yt-holder" style="position:absolute;inset:0"></div><video id="native-video" style="position:absolute;inset:0;width:100%;height:100%;display:none;background:#000;border-radius:1vmin" playsinline controls></video><div id="title-guard" hidden></div><div class="mask" id="media-mask" hidden><span>♪ ?</span></div></div>
 <canvas id="confetti"></canvas>
-<div id="build-tag">b0814.2157</div>
+<div id="build-tag">b0814.2216</div>
 <script type="module">
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -382,7 +383,7 @@ function render() {
 
   const lr = S.data?.last_result;
   const key = lr ? JSON.stringify(lr) : null;
-  if (lr && key !== lastResultKey && ["board", "armed"].includes(phase)) showResultToast(lr);
+  if (lr && key !== lastResultKey && ["board", "armed", "clue_open"].includes(phase)) showResultToast(lr);
   lastResultKey = key;
 }
 
@@ -461,7 +462,6 @@ function clueView() {
   const hasMedia = ["youtube_video", "youtube_audio", "video", "image"].includes(ac.clue_type) && ac.media_url;
   const long = (ac.prompt ?? "").length > 110;
   const buzzes = S.data?.buzz_order ?? [];
-  const locked = S.data?.locked ?? [];
   return `<div class="clue">
     ${S.phase === "armed" ? '<div class="armed-bar">Buzzers live</div>' : ""}
     <div class="clue-head">${esc(ac.category)} — ${ac.is_daily_double ? "Daily Double · wager " + fmt(ac.wager ?? 0) + " (" + esc(ac.team_name ?? "") + ")" : "$" + ac.points}</div>
@@ -471,12 +471,10 @@ function clueView() {
       ${hasMedia && ac.clue_type !== "image" ? '<div id="media-anchor"></div>' : ""}
     </div>
     ${S.phase === "reveal" && ac.answer ? `<div class="answer-band"><div class="lbl">Correct response</div><div class="ans">${esc(ac.answer)}</div></div>` : ""}
-    <div id="buzz-stack">${buzzes.map((id, i) => {
-      const t = teamById(id); if (!t) return "";
-      return `<div class="buzz-toast ${i === 0 ? "first" : ""}"><span class="pos">${i + 1}</span> ${esc(t.emoji)} ${esc(t.name)}</div>`;
-    }).join("")}${locked.map((id) => {
-      const t = teamById(id); if (!t) return "";
-      return `<div class="buzz-toast locked-out">✘ ${esc(t.emoji)} ${esc(t.name)}</div>`;
+    <div id="buzz-stack">${buzzes.map((b, i) => {
+      const t = teamById(b.team_id); if (!t) return "";
+      const gap = i === 0 ? "" : `<span class="gap">+${((Date.parse(b.at) - Date.parse(buzzes[0].at)) / 1000).toFixed(3)}s</span>`;
+      return `<div class="buzz-toast ${i === 0 ? "first" : ""}"><span class="pos">${i === 0 ? "🍺" : i + 1}</span> ${esc(t.emoji)} ${esc(t.name)} ${gap}</div>`;
     }).join("")}</div>
   </div>`;
 }
@@ -621,7 +619,7 @@ function showResultToast(lr) {
   div.className = "result-toast " + (lr.correct ? "" : "bad");
   div.innerHTML = lr.correct
     ? `<b>${esc(lr.team_name)}</b> got it! +${fmt(lr.points)} — <i>${esc(lr.answer ?? "")}</i>`
-    : `<b>${esc(lr.team_name)}</b> — not quite. −${fmt(lr.points)}`;
+    : `<b>${esc(lr.team_name)}</b> — wrong! −${fmt(lr.points)} · clean slate, chug &amp; buzz again 🍺`;
   document.body.appendChild(div);
   blip(lr.correct ? 1200 : 220);
   setTimeout(() => div.remove(), 4500);

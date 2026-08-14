@@ -123,6 +123,7 @@ let S = null;
 let myId = Number(localStorage.getItem("bj_team") || 0) || null;
 let buzzInFlight = false;
 let myPosition = null;    // set from buzz POST response for instant feedback
+let myBehind = null;      // ms behind the winner, from the buzz response
 let wagerVal = 0, wagerLocked = false, lastPhase = null;
 
 /* keep the phone awake through the whole game */
@@ -138,7 +139,7 @@ function render() {
   if (!S) return;
   const t = me();
   if (S.phase !== lastPhase) {          // phase flips reset per-clue local state
-    if (["clue_open", "board", "dd_wager"].includes(S.phase)) myPosition = null;
+    if (["clue_open", "board", "dd_wager"].includes(S.phase)) { myPosition = null; myBehind = null; }
     if (S.phase === "final_wager" && lastPhase !== "final_wager") { wagerVal = 0; wagerLocked = false; }
     lastPhase = S.phase;
   }
@@ -148,8 +149,7 @@ function render() {
     : `<span class="who" style="color:#aab3ea">Jeopardy — Bachelor Edition</span>`;
 
   if (!t) return renderJoin();
-  const buzzedIds = S.data?.buzz_order ?? [];
-  const lockedIds = S.data?.locked ?? [];
+  const buzzes = S.data?.buzz_order ?? [];
 
   if (S.phase === "final_wager") return renderWager(t);
   if (S.phase === "final_clue") return renderInfo("🤫", "Answer time!", "Talk it over — the MC will come to you.");
@@ -159,7 +159,7 @@ function render() {
     const mine = S.active_clue?.team_id === myId;
     return renderInfo("💰", "Daily Double!", mine ? "It's all on you. Answer out loud!" : "Not your clue — enjoy the sweat.");
   }
-  renderBuzzer(t, buzzedIds, lockedIds);
+  renderBuzzer(t, buzzes);
 }
 
 function renderJoin() {
@@ -183,20 +183,24 @@ function renderJoin() {
   );
 }
 
-function renderBuzzer(t, buzzedIds, lockedIds) {
+function renderBuzzer(t, buzzes) {
   const armed = S.phase === "armed";
-  const iBuzzed = buzzedIds.includes(myId) || myPosition !== null;
-  const iAmLocked = lockedIds.includes(myId);
-  const pos = myPosition ?? (buzzedIds.indexOf(myId) + 1 || null);
-  const cls = iAmLocked ? "lockedout" : iBuzzed ? "buzzed" : armed ? "armed" : "";
-  const label = iAmLocked
-    ? "Locked out"
-    : iBuzzed
-    ? `<span class="pos">${ordinal(pos)}</span>in line`
+  const myIdx = buzzes.findIndex((b) => b.team_id === myId);
+  const iBuzzed = myIdx >= 0 || myPosition !== null;
+  const pos = myPosition ?? (myIdx >= 0 ? myIdx + 1 : null);
+  let behind = myBehind;
+  if (behind === null && myIdx > 0) {
+    behind = Date.parse(buzzes[myIdx].at) - Date.parse(buzzes[0].at);
+  }
+  const cls = iBuzzed ? (pos === 1 ? "armed" : "buzzed") : armed ? "armed" : "";
+  const label = iBuzzed
+    ? (pos === 1
+      ? '<span class="pos">🍺</span>FIRST — answer out loud!'
+      : `<span class="pos">${ordinal(pos)}</span>+${((behind ?? 0) / 1000).toFixed(3)}s too slow`)
     : armed
-    ? "BUZZ!"
+    ? "CHUG &amp; BUZZ!"
     : S.phase === "clue_open"
-    ? "Read the clue…"
+    ? "Drinks ready…"
     : "Stand by…";
   main.innerHTML = `<button id="big" class="${cls}">${label}</button><div class="err" id="err"></div>`;
   document.getElementById("big").addEventListener("pointerdown", buzz);
@@ -206,12 +210,12 @@ const ordinal = (n) => n === 1 ? "1st" : n === 2 ? "2nd" : n === 3 ? "3rd" : n +
 
 async function buzz() {
   if (S.phase !== "armed" || buzzInFlight || myPosition !== null) return;
-  if ((S.data?.locked ?? []).includes(myId)) return;
   buzzInFlight = true;
   navigator.vibrate?.(35);
   try {
     const r = await api({ op: "buzz", team_id: myId });
     myPosition = r.position;
+    myBehind = r.behind_ms ?? null;
     render();
   } catch (e) {
     const el = document.getElementById("err");
