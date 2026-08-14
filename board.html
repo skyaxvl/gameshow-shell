@@ -136,6 +136,8 @@
   .mask span { font-family: "Anton", sans-serif; font-size: 16vmin; color: var(--gold);
     animation: pulse 1.2s ease-in-out infinite; }
   .mask span.err { font-size: 4vmin; animation: none; }
+  /* author display:flex beats the UA's [hidden] rule — restore it explicitly */
+  .mask[hidden] { display: none; }
   #title-guard { position: absolute; top: 0; left: 0; right: 0; height: 19%; z-index: 4;
     background: linear-gradient(180deg, #04071f 62%, transparent); border-radius: 1vmin 1vmin 0 0; }
   /* temporary authoring aid: cards holding real (non-placeholder) content
@@ -215,7 +217,7 @@
 </div>
 <div id="media-slot"><div id="yt-holder" style="position:absolute;inset:0"></div><div id="title-guard" hidden></div><div class="mask" id="media-mask" hidden><span>♪ ?</span></div></div>
 <canvas id="confetti"></canvas>
-<div id="build-tag">b0814.2045</div>
+<div id="build-tag">b0814.2052</div>
 <script type="module">
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
