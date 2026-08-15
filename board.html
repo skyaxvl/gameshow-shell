@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Jeopardy — Bachelor Edition</title>
+<title>Lundpardy — Bachelor Edition</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Anton&family=Vollkorn:ital,wght@0,600;0,900;1,600&display=swap" rel="stylesheet">
@@ -211,7 +211,7 @@
 </head>
 <body>
 <div id="gate">
-  <div class="brand">Jeopardy!<small>Bachelor Edition</small></div>
+  <div class="brand">Lundpardy!<small>Bachelor Edition</small></div>
   <button>Start the show</button>
 </div>
 <div id="app">
@@ -220,7 +220,7 @@
 </div>
 <div id="media-slot"><div id="yt-holder" style="position:absolute;inset:0"></div><video id="native-video" style="position:absolute;inset:0;width:100%;height:100%;display:none;background:#000;border-radius:1vmin" playsinline controls></video><div id="title-guard" hidden></div><div class="mask" id="media-mask" hidden><span>♪ ?</span></div></div>
 <canvas id="confetti"></canvas>
-<div id="build-tag">b0815.1827</div>
+<div id="build-tag">b0815.1829</div>
 <script type="module">
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -270,7 +270,7 @@ const pageUrl = (name) => location.pathname.endsWith(".html")
 // Self-heal stale pages: the API reports the current build; if this page was
 // served from an old cache, reload once with a cache-busting query.
 function ensureBuild(server) {
-  const mine = "b0815.1827";
+  const mine = "b0815.1829";
   if (!server || mine === "dev" || server === mine) return;
   const guard = "bj_reload_" + server;
   const last = Number(sessionStorage.getItem(guard) || 0);
@@ -421,7 +421,7 @@ function setupView() {
   const joinUrl = pageUrl("buzzer");
   return `<div class="setup">
     <div>
-      <div class="brand">Jeopardy!<small>Bachelor Edition</small></div>
+      <div class="brand">Lundpardy!<small>Bachelor Edition</small></div>
       <div class="lobby" style="margin-top:3vmin">
         ${S.teams.length ? S.teams.map((t) => `
           <div class="team-row ${t.claimed ? "claimed" : ""}">${esc(t.emoji)} ${esc(t.name)}
