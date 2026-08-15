@@ -190,6 +190,7 @@
     padding: 1.6vmin 2.6vmin; border-radius: 1.2vmin; font-size: 3vmin; animation: slide-up .4s both; }
   .fr-card.right { border-color: #6fe08e; } .fr-card.wrongf { border-color: var(--wrong); }
   .fr-card .delta { font-family: "Anton", sans-serif; }
+  .fr-card .fr-ans { font-style: italic; color: #cdd4ff; font-size: 2.4vmin; }
   .fr-card.right .delta { color: #6fe08e; } .fr-card.wrongf .delta { color: var(--wrong); }
   .timer-ring { width: 12vmin; height: 12vmin; }
   .timer-ring circle { fill: none; stroke-width: 8; }
@@ -219,7 +220,7 @@
 </div>
 <div id="media-slot"><div id="yt-holder" style="position:absolute;inset:0"></div><video id="native-video" style="position:absolute;inset:0;width:100%;height:100%;display:none;background:#000;border-radius:1vmin" playsinline controls></video><div id="title-guard" hidden></div><div class="mask" id="media-mask" hidden><span>♪ ?</span></div></div>
 <canvas id="confetti"></canvas>
-<div id="build-tag">b0815.0558</div>
+<div id="build-tag">b0815.1827</div>
 <script type="module">
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -269,7 +270,7 @@ const pageUrl = (name) => location.pathname.endsWith(".html")
 // Self-heal stale pages: the API reports the current build; if this page was
 // served from an old cache, reload once with a cache-busting query.
 function ensureBuild(server) {
-  const mine = "b0815.0558";
+  const mine = "b0815.1827";
   if (!server || mine === "dev" || server === mine) return;
   const guard = "bj_reload_" + server;
   const last = Number(sessionStorage.getItem(guard) || 0);
@@ -502,6 +503,7 @@ function finalWagerView() {
 
 function finalClueView() {
   const ac = S.active_clue;
+  const inCount = (S.data?.final?.answers_in ?? []).length;
   return `<div class="clue">
     <div class="clue-head">Final Jeopardy — ${esc(ac.category)}</div>
     <div class="clue-body">
@@ -511,6 +513,7 @@ function finalClueView() {
         <circle id="ring" cx="50" cy="50" r="44" stroke="var(--gold)" stroke-linecap="round"
           stroke-dasharray="276.5" stroke-dashoffset="0" transform="rotate(-90 50 50)"></circle>
       </svg>
+      <div style="font-size:2.6vmin;color:#cdd4ff">Written answers in: <b style="color:var(--gold)">${inCount} / ${S.teams.length}</b> — type on your phones!</div>
     </div>
   </div>`;
 }
@@ -519,7 +522,7 @@ let timerInt;
 function startFinalTimer() {
   clearInterval(timerInt);
   const t0 = new Date(S.data?.final?.clue_at ?? Date.now()).getTime();
-  const DUR = 60_000;
+  const DUR = 30_000;   // matches the think music
   timerInt = setInterval(() => {
     const ring = document.getElementById("ring");
     if (!ring) { clearInterval(timerInt); return; }
@@ -535,7 +538,7 @@ function finalRevealView() {
     <div class="big" style="font-size:7vmin">The moment of truth</div>
     <div class="final-list">${revealed.map((r) => `
       <div class="fr-card ${r.correct ? "right" : "wrongf"}">
-        <span>${esc(r.emoji)} ${esc(r.team_name)}</span>
+        <span>${esc(r.emoji)} ${esc(r.team_name)} <span class="fr-ans">“${esc(r.answer ?? "—")}”</span></span>
         <span class="delta">${r.correct ? "+" : "−"}${fmt(r.wager).replace("−", "")} → ${fmt(r.new_score)}</span>
       </div>`).join("")}
     </div></div>`;

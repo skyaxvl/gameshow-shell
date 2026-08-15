@@ -126,7 +126,7 @@ const pageUrl = (name) => location.pathname.endsWith(".html")
 // Self-heal stale pages: the API reports the current build; if this page was
 // served from an old cache, reload once with a cache-busting query.
 function ensureBuild(server) {
-  const mine = "b0815.0558";
+  const mine = "b0815.1827";
   if (!server || mine === "dev" || server === mine) return;
   const guard = "bj_reload_" + server;
   const last = Number(sessionStorage.getItem(guard) || 0);
@@ -356,8 +356,10 @@ function finalDriveCard() {
     <div>${esc(full.prompt ?? "")}</div>
     <div class="answer-box"><div class="lbl">Answer (only you see this)</div><div class="val">${esc(full.expected_answer ?? "…")}</div></div>
     ${full.mc_notes ? `<div class="notes">${esc(full.mc_notes)}</div>` : ""}
+    ${S.phase === "final_clue" ? `<div class="hintline">Answers in: ${(S.data?.final?.answers_in ?? []).length} / ${(S.teams ?? []).length} — when the music stops, judge below (revealing closes submissions).</div>` : ""}
     ${next ? `
-      <div class="hintline">Next up (lowest score first): <b>${esc(next.emoji)} ${esc(next.name)}</b> — wagered ${fmt(wager?.amount ?? 0)}. Ask for their answer out loud, then:</div>
+      <div class="hintline">Next up (lowest score first): <b>${esc(next.emoji)} ${esc(next.name)}</b> — wagered ${fmt(wager?.amount ?? 0)}.</div>
+      <div class="answer-box"><div class="lbl">Their written answer</div><div class="val">${esc(wager?.answer ?? "(nothing submitted)")}</div></div>
       <div class="row">
         <button class="ok grow" data-act="final-right">✔ RIGHT</button>
         <button class="bad grow" data-act="final-wrong">✘ WRONG</button>

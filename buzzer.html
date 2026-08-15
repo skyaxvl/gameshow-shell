@@ -58,6 +58,10 @@
     border-radius:12px; border:none; color:var(--navy);
     background:linear-gradient(180deg,#ffe9a8,var(--gold) 55%,var(--gold-deep)); }
   .lockin:disabled { filter:grayscale(1) brightness(.6); }
+  #fa-input { width:100%; font-family:inherit; font-size:20px; font-weight:600; color:#fff;
+    background:#141c58; border:2px solid rgba(255,255,255,.3); border-radius:12px; padding:14px 16px;
+    -webkit-user-select:text; user-select:text; }
+  #fa-input:focus { outline:none; border-color:var(--gold); }
   .locked-note { color:var(--ok); font-size:18px; font-weight:900; }
   .err { color:var(--wrong); font-size:15px; min-height:20px; text-align:center; }
 </style>
@@ -116,7 +120,7 @@ const pageUrl = (name) => location.pathname.endsWith(".html")
 // Self-heal stale pages: the API reports the current build; if this page was
 // served from an old cache, reload once with a cache-busting query.
 function ensureBuild(server) {
-  const mine = "b0815.0558";
+  const mine = "b0815.1827";
   if (!server || mine === "dev" || server === mine) return;
   const guard = "bj_reload_" + server;
   const last = Number(sessionStorage.getItem(guard) || 0);
@@ -139,6 +143,7 @@ let buzzInFlight = false;
 let myPosition = null;    // set from buzz POST response for instant feedback
 let myBehind = null;      // ms behind the winner, from the buzz response
 let wagerVal = 0, wagerLocked = false, lastPhase = null;
+let finalAnswerText = "", finalAnswerLocked = false;
 
 /* keep the phone awake through the whole game */
 async function keepAwake() {
@@ -155,6 +160,7 @@ function render() {
   if (S.phase !== lastPhase) {          // phase flips reset per-clue local state
     if (["clue_open", "board", "dd_wager"].includes(S.phase)) { myPosition = null; myBehind = null; }
     if (S.phase === "final_wager" && lastPhase !== "final_wager") { wagerVal = 0; wagerLocked = false; }
+    if (S.phase === "final_clue" && lastPhase !== "final_clue") { finalAnswerText = ""; finalAnswerLocked = false; }
     lastPhase = S.phase;
   }
   head.innerHTML = t
@@ -166,7 +172,7 @@ function render() {
   const buzzes = S.data?.buzz_order ?? [];
 
   if (S.phase === "final_wager") return renderWager(t);
-  if (S.phase === "final_clue") return renderInfo("🤫", "Answer time!", "Talk it over — the MC will come to you.");
+  if (S.phase === "final_clue") return renderFinalAnswer(t);
   if (S.phase === "final_reveal") return renderInfo("🥁", "The reveal…", "Eyes on the big screen!");
   if (S.phase === "done") return renderInfo("🏆", "That's the game!", "Thanks for playing.");
   if (S.phase === "dd_wager" || (S.active_clue?.is_daily_double && S.phase === "clue_open")) {
@@ -267,6 +273,35 @@ function renderWager(t) {
     try {
       await api({ op: "final_wager", team_id: myId, amount: wagerVal });
       wagerLocked = true;
+      navigator.vibrate?.(60);
+      render();
+    } catch (e) { document.getElementById("err").textContent = e.message; }
+  });
+}
+
+function renderFinalAnswer(t) {
+  const already = (S.data?.final?.answers_in ?? []).includes(myId) || finalAnswerLocked;
+  if (already) return renderInfo("🔒", "Answer locked in", "Eyes on the big screen for the reveal!");
+  const hadFocus = document.activeElement?.id === "fa-input";
+  const caret = hadFocus ? document.activeElement.selectionStart : null;
+  main.innerHTML = `
+    <h1 class="title">Final Answer</h1>
+    <div class="hint">${esc(S.active_clue?.prompt ?? "")}</div>
+    <div class="wager-box">
+      <input type="text" id="fa-input" placeholder="Write your answer…" autocomplete="off" autocapitalize="sentences">
+      <button class="lockin" id="fa-lock">Submit final answer</button>
+      <div class="err" id="err"></div>
+    </div>`;
+  const inp = main.querySelector("#fa-input");
+  inp.value = finalAnswerText;
+  inp.addEventListener("input", () => { finalAnswerText = inp.value; });
+  if (hadFocus) { inp.focus(); try { inp.setSelectionRange(caret, caret); } catch { /* ok */ } }
+  main.querySelector("#fa-lock").addEventListener("click", async () => {
+    const a = inp.value.trim();
+    if (!a) { document.getElementById("err").textContent = "write your answer first"; return; }
+    try {
+      await api({ op: "final_answer", team_id: myId, answer: a });
+      finalAnswerLocked = true;
       navigator.vibrate?.(60);
       render();
     } catch (e) { document.getElementById("err").textContent = e.message; }
