@@ -116,7 +116,7 @@ const pageUrl = (name) => location.pathname.endsWith(".html")
 // Self-heal stale pages: the API reports the current build; if this page was
 // served from an old cache, reload once with a cache-busting query.
 function ensureBuild(server) {
-  const mine = "b0814.2314";
+  const mine = "b0815.0557";
   if (!server || mine === "dev" || server === mine) return;
   const guard = "bj_reload_" + server;
   if (sessionStorage.getItem(guard)) return;   // one attempt per build — no loops

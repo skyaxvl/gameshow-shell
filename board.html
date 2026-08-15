@@ -144,9 +144,6 @@
   .mask[hidden] { display: none; }
   #title-guard { position: absolute; top: 0; left: 0; right: 0; height: 19%; z-index: 4;
     background: linear-gradient(180deg, #04071f 62%, transparent); border-radius: 1vmin 1vmin 0 0; }
-  /* temporary authoring aid: cards holding real (non-placeholder) content
-     render green instead of blue — remove before party night */
-  .cell.ready-cell { background: linear-gradient(180deg, #14b183, #078f66 45%, #045c42); }
   .answer-band { background: rgba(0,0,0,.45); border-top: .3vmin solid var(--gold);
     margin: 0 -3vmin -3vmin; padding: 2.4vmin; animation: slide-up .35s both; }
   @keyframes slide-up { from { transform: translateY(100%); } }
@@ -222,7 +219,7 @@
 </div>
 <div id="media-slot"><div id="yt-holder" style="position:absolute;inset:0"></div><video id="native-video" style="position:absolute;inset:0;width:100%;height:100%;display:none;background:#000;border-radius:1vmin" playsinline controls></video><div id="title-guard" hidden></div><div class="mask" id="media-mask" hidden><span>♪ ?</span></div></div>
 <canvas id="confetti"></canvas>
-<div id="build-tag">b0814.2314</div>
+<div id="build-tag">b0815.0557</div>
 <script type="module">
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -272,7 +269,7 @@ const pageUrl = (name) => location.pathname.endsWith(".html")
 // Self-heal stale pages: the API reports the current build; if this page was
 // served from an old cache, reload once with a cache-busting query.
 function ensureBuild(server) {
-  const mine = "b0814.2314";
+  const mine = "b0815.0557";
   if (!server || mine === "dev" || server === mine) return;
   const guard = "bj_reload_" + server;
   if (sessionStorage.getItem(guard)) return;   // one attempt per build — no loops
@@ -458,7 +455,7 @@ function gridView() {
       cat.clues.map((c) =>
         c.answered
           ? `<div class="cell done-cell"><span class="val">${c.points}</span></div>`
-          : `<div class="cell ${c.ready ? "ready-cell" : ""}" style="--d:${(i++) * .04}s"><span class="val">$${c.points}</span></div>`
+          : `<div class="cell" style="--d:${(i++) * .04}s"><span class="val">$${c.points}</span></div>`
       ).join("")
     ).join("")
   }</div></div>`;

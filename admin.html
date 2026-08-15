@@ -45,7 +45,6 @@
     text-align:center; overflow:hidden; display:flex; align-items:center; justify-content:center; min-height:30px; line-height:1.15; }
   .mini-grid button.tile { font-family:"Anton",sans-serif; font-size:15px; color:var(--gold); padding:10px 0; position:relative; }
   .mini-grid button.tile.used { opacity:.25; text-decoration:line-through; }
-  .mini-grid button.tile.ready { background:#0b4534; border-color:#2bd4a0; color:#7fe6c3; }
   .mini-grid button.tile .dd { position:absolute; top:2px; right:4px; font-size:9px; color:#ff9aa5; }
   .queue { display:flex; flex-direction:column; gap:8px; }
   .q-item { display:flex; align-items:center; gap:10px; background:var(--panel2); border:1px solid var(--line);
@@ -127,7 +126,7 @@ const pageUrl = (name) => location.pathname.endsWith(".html")
 // Self-heal stale pages: the API reports the current build; if this page was
 // served from an old cache, reload once with a cache-busting query.
 function ensureBuild(server) {
-  const mine = "b0814.2314";
+  const mine = "b0815.0557";
   if (!server || mine === "dev" || server === mine) return;
   const guard = "bj_reload_" + server;
   if (sessionStorage.getItem(guard)) return;   // one attempt per build — no loops
@@ -269,7 +268,7 @@ function gridCard() {
           const cl = c.clues[row];
           if (!cl) return "<span></span>";
           const full = clueById(cl.id);
-          return `<button class="tile ${cl.answered ? "used" : ""} ${full?.is_ready && !cl.answered ? "ready" : ""}" data-act="pick-clue" data-id="${cl.id}" ${cl.answered ? "disabled" : ""}>
+          return `<button class="tile ${cl.answered ? "used" : ""}" data-act="pick-clue" data-id="${cl.id}" ${cl.answered ? "disabled" : ""}>
             ${cl.points}${full?.is_daily_double ? '<span class="dd">DD</span>' : ""}</button>`;
         }).join("")
       ).join("")}
