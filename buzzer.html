@@ -116,11 +116,12 @@ const pageUrl = (name) => location.pathname.endsWith(".html")
 // Self-heal stale pages: the API reports the current build; if this page was
 // served from an old cache, reload once with a cache-busting query.
 function ensureBuild(server) {
-  const mine = "b0815.0557";
+  const mine = "b0815.0558";
   if (!server || mine === "dev" || server === mine) return;
   const guard = "bj_reload_" + server;
-  if (sessionStorage.getItem(guard)) return;   // one attempt per build — no loops
-  sessionStorage.setItem(guard, "1");
+  const last = Number(sessionStorage.getItem(guard) || 0);
+  if (Date.now() - last < 120_000) return;     // retry at most every 2 min — no loops
+  sessionStorage.setItem(guard, String(Date.now()));
   const u = new URL(location.href);
   u.searchParams.set("v", server);
   location.replace(u.toString());
